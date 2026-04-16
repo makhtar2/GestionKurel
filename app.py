@@ -13,13 +13,24 @@ st.set_page_config(
 # Connexion à Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# Liste prédéfinie des membres (à adapter selon votre Kourel)
-MEMBRES_PAR_DEFAUT = [
-    "Membre 1", "Membre 2", "Membre 3", "Membre 4", "Membre 5"
-]
+# --- Fonction de lecture des membres depuis l'onglet 'Membres' ---
+def get_members_list():
+    try:
+        # On lit l'onglet 'Membres'
+        df_members = conn.read(worksheet="Membres", ttl="5m")
+        if not df_members.empty and "Nom" in df_members.columns:
+            return df_members["Nom"].dropna().sort_values().tolist()
+        else:
+            return ["Ajoutez des noms dans l'onglet Membres"]
+    except Exception:
+        # Liste de secours si l'onglet n'existe pas encore
+        return ["Erreur: Créez l'onglet 'Membres' avec une colonne 'Nom'"]
 
 # Titre principal
 st.title("🎤 Gestion de Présence Kourel")
+
+# Chargement dynamique des membres
+MEMBRES_DYNAMIQUES = get_members_list()
 
 # Barre latérale pour la navigation
 menu = st.sidebar.selectbox(
@@ -27,12 +38,12 @@ menu = st.sidebar.selectbox(
     ["Pointage", "Historique", "Statistiques"]
 )
 
-# --- Fonction de lecture des données ---
+# --- Fonction de lecture des données de présence ---
 def get_data():
     try:
+        # On lit l'onglet principal (par défaut le premier)
         return conn.read(ttl="1m")
     except Exception:
-        # Retourne un DataFrame vide si la feuille est vide
         return pd.DataFrame(columns=["Date", "Membre", "Statut", "Commentaire"])
 
 # --- SECTION : POINTAGE ---
@@ -48,7 +59,7 @@ if menu == "Pointage":
             
             with col1:
                 date_pointage = st.date_input("Date de répétition", datetime.now())
-                membre_selected = st.selectbox("Membre", MEMBRES_PAR_DEFAUT)
+                membre_selected = st.selectbox("Membre", MEMBRES_DYNAMIQUES)
             
             with col2:
                 statut_selected = st.selectbox(
