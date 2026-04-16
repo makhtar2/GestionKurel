@@ -6,15 +6,29 @@ import plotly.express as px
 
 # Configuration de la page
 st.set_page_config(
-    page_title="Gestion Kourel Pro",
+    page_title="Kourel Presence",
     page_icon="🎤",
     layout="wide"
 )
 
+# Style CSS pour améliorer l'expérience mobile (boutons plus grands, padding)
+st.markdown("""
+    <style>
+    .stButton button {
+        width: 100%;
+        height: 3em;
+        font-weight: bold;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 25px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 # Connexion à Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- Fonctions de lecture des données ---
+# --- Fonctions de lecture ---
 @st.cache_data(ttl=60)
 def get_members_list():
     try:
@@ -35,113 +49,104 @@ def get_attendance_data():
     except:
         return pd.DataFrame(columns=["Date", "Membre", "Statut", "Commentaire"])
 
-# Initialisation des données
+# Initialisation
 MEMBRES_DYNAMIQUES = get_members_list()
 df_main = get_attendance_data()
 
-# --- BARRE LATÉRALE ---
-st.sidebar.title("🎤 Kourel Menu")
-menu = st.sidebar.radio("Navigation", ["🏠 Accueil & Stats", "📝 Faire le Pointage", "📊 Historique Complet"])
+# --- NAVIGATION ---
+menu = st.sidebar.selectbox("Aller à", ["🏠 Tableau de Bord", "✅ Faire l'Appel", "📊 Historique"])
 
 # --- SECTION : ACCUEIL & STATS ---
-if menu == "🏠 Accueil & Stats":
-    st.title("📈 Tableau de Bord des Présences")
+if menu == "🏠 Tableau de Bord":
+    st.title("🎤 Kourel Dashboard")
     
     if not df_main.empty:
-        # --- CALCULS DES KPIs ---
         total_sessions = len(df_main['Date'].unique())
-        total_points = len(df_main)
-        # Taux global (Présent + Retard)
         presences_count = len(df_main[df_main['Statut'].isin(["Présent", "Retard"])])
-        taux_global = round((presences_count / total_points) * 100, 1) if total_points > 0 else 0
+        taux_global = round((presences_count / len(df_main)) * 100, 1) if len(df_main) > 0 else 0
         
-        # Affichage des KPIs
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Séances", f"{total_sessions}")
-        col2.metric("Taux de Présence Global", f"{taux_global}%")
-        col3.metric("Membres Actifs", f"{len(MEMBRES_DYNAMIQUES)}")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Séances", total_sessions)
+        c2.metric("Taux Global", f"{taux_global}%")
+        c3.metric("Membres", len(MEMBRES_DYNAMIQUES))
         
-        st.markdown("---")
-        
-        # --- GRAPHIQUE PAR MEMBRE ---
-        st.subheader("Analyse par Membre")
+        # Graphique simplifié
         stats = df_main.copy()
-        stats['Presence_Value'] = stats['Statut'].apply(lambda x: 1 if x in ["Présent", "Retard"] else 0)
-        member_stats = stats.groupby('Membre').agg(
-            Taux=('Presence_Value', 'mean'),
-            Total=('Statut', 'count')
-        ).reset_index()
-        member_stats['Taux'] = (member_stats['Taux'] * 100).round(1)
+        stats['Val'] = stats['Statut'].apply(lambda x: 1 if x in ["Présent", "Retard"] else 0)
+        m_stats = stats.groupby('Membre')['Val'].mean().reset_index()
+        m_stats['Val'] = (m_stats['Val'] * 100).round(0)
         
-        fig = px.bar(member_stats, x='Membre', y='Taux', 
-                     title="Taux de présence (%) par membre",
-                     color='Taux', color_continuous_scale='RdYlGn',
-                     range_y=[0, 100])
+        fig = px.bar(m_stats, x='Val', y='Membre', orientation='h', 
+                     title="Taux de présence (%)", text='Val',
+                     color='Val', color_continuous_scale='RdYlGn')
+        fig.update_layout(xaxis_title="", yaxis_title="", showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("Bienvenue ! Commencez par enregistrer des présences pour voir les statistiques.")
+        st.info("Aucune donnée disponible.")
 
-# --- SECTION : POINTAGE ---
-elif menu == "📝 Faire le Pointage":
-    st.title("📝 Nouveau Pointage")
+# --- SECTION : FAIRE L'APPEL (OPTIMISÉ MOBILE) ---
+elif menu == "✅ Faire l'Appel":
+    st.title("✅ Faire l'Appel")
     
-    # Sécurité simplifiée dans la sidebar
-    if st.sidebar.text_input("Mot de passe", type="password") == st.secrets["password"]:
-        with st.form("presence_form", clear_on_submit=True):
-            c1, c2 = st.columns(2)
-            with c1:
-                date_p = st.date_input("Date", datetime.now())
-                membre_p = st.selectbox("Choisir le membre", MEMBRES_DYNAMIQUES)
-            with c2:
-                statut_p = st.selectbox("Statut", ["Présent", "Absent", "Retard", "Excusé"])
-                comment_p = st.text_input("Commentaire (optionnel)")
+    if st.sidebar.text_input("Code Secret", type="password") == st.secrets["password"]:
+        date_appel = st.date_input("Date du jour", datetime.now())
+        
+        st.info("Par défaut, tout le monde est 'Présent'. Modifiez uniquement les absents ou retards.")
+        
+        # Création d'un dictionnaire pour stocker les nouveaux statuts
+        nouveaux_statuts = {}
+        nouveaux_commentaires = {}
+        
+        # Liste des membres avec sélecteurs compacts
+        for membre in MEMBRES_DYNAMIQUES:
+            with st.container():
+                col_name, col_statut = st.columns([2, 2])
+                with col_name:
+                    st.markdown(f"**{membre}**")
+                with col_statut:
+                    nouveaux_statuts[membre] = st.selectbox(
+                        "Statut", 
+                        ["Présent", "Absent", "Retard", "Excusé"], 
+                        key=f"stat_{membre}",
+                        label_visibility="collapsed"
+                    )
+                
+                # Commentaire optionnel (caché dans un expander pour gagner de la place)
+                with st.expander(f"Note pour {membre}"):
+                    nouveaux_commentaires[membre] = st.text_input("Commentaire", key=f"com_{membre}")
+            st.divider()
+
+        if st.button("💾 ENREGISTRER L'APPEL COMPLET"):
+            # Préparation des données pour l'envoi
+            rows_to_add = []
+            for membre in MEMBRES_DYNAMIQUES:
+                rows_to_add.append({
+                    "Date": str(date_appel),
+                    "Membre": membre,
+                    "Statut": nouveaux_statuts[membre],
+                    "Commentaire": nouveaux_commentaires.get(membre, "")
+                })
             
-            if st.form_submit_button("✅ Enregistrer"):
-                new_row = pd.DataFrame([{"Date": str(date_p), "Membre": membre_p, "Statut": statut_p, "Commentaire": comment_p}])
-                updated_df = pd.concat([df_main, new_row], ignore_index=True)
+            new_data_df = pd.DataFrame(rows_to_add)
+            updated_df = pd.concat([df_main, new_data_df], ignore_index=True)
+            
+            with st.spinner("Enregistrement en cours..."):
                 conn.update(data=updated_df)
-                st.success(f"Enregistré : {membre_p} ({statut_p})")
+                st.success(f"Appel du {date_appel} enregistré avec succès !")
                 st.balloons()
-                st.cache_data.clear() # Forcer la mise à jour
+                st.cache_data.clear()
     else:
-        st.warning("Entrez le mot de passe dans la barre latérale pour pointer.")
+        st.warning("Veuillez entrer le mot de passe dans le menu latéral.")
 
 # --- SECTION : HISTORIQUE ---
-elif menu == "📊 Historique Complet":
-    st.title("📊 Historique des Présences")
+elif menu == "📊 Historique":
+    st.title("📊 Historique")
     
-    if not df_main.empty:
-        # --- FILTRES ---
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            f_membre = st.multiselect("Filtrer par Membre", options=MEMBRES_DYNAMIQUES)
-        with col_f2:
-            f_statut = st.multiselect("Filtrer par Statut", options=["Présent", "Absent", "Retard", "Excusé"])
-        
-        # Application des filtres
-        df_filtered = df_main.copy()
-        if f_membre:
-            df_filtered = df_filtered[df_filtered['Membre'].isin(f_membre)]
-        if f_statut:
-            df_filtered = df_filtered[df_filtered['Statut'].isin(f_statut)]
-            
-        # Style pour le tableau
-        def color_status(val):
-            color = 'white'
-            if val == 'Présent': color = '#90ee90' # Vert clair
-            elif val == 'Absent': color = '#ffcccb' # Rouge clair
-            elif val == 'Retard': color = '#ffe4b5' # Orange clair
-            elif val == 'Excusé': color = '#e0e0e0' # Gris
-            return f'background-color: {color}'
-
-        st.dataframe(
-            df_filtered.sort_values(by="Date", ascending=False).style.applymap(color_status, subset=['Statut']),
-            use_container_width=True,
-            height=500
-        )
-        
-        # Export CSV
-        csv = df_filtered.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Télécharger l'historique (CSV)", csv, "presence_kourel.csv", "text/csv")
-    else:
-        st.info("L'historique est vide.")
+    # Filtres compacts
+    f_mem = st.multiselect("Filtrer Membre", MEMBRES_DYNAMIQUES)
+    
+    df_f = df_main.copy()
+    if f_mem:
+        df_f = df_f[df_f['Membre'].isin(f_mem)]
+    
+    st.dataframe(df_f.sort_values("Date", ascending=False), use_container_width=True)
