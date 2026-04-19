@@ -98,9 +98,17 @@ function App() {
     const dateStr = format(attendanceDate, 'yyyy-MM-dd');
     const records = Object.entries(attendance).map(([mId, status]) => ({ member_id: mId, status, date: dateStr }));
     const { error } = await supabase.from('attendance').insert(records);
-    if (!error) { showToast('Enregistré !'); loadKourelData(selectedKourel.id); setView('dashboard'); }
+    if (!error) { showToast('Appel enregistré !'); loadKourelData(selectedKourel.id); setView('dashboard'); }
     else { showToast('Erreur', 'error'); }
     setSaving(false);
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) await fetchProfile(data.user.id);
+    else { showToast('Identifiants incorrects', 'error'); setLoading(false); }
   };
 
   const handleLogout = () => { supabase.auth.signOut().then(() => window.location.reload()); };
@@ -221,37 +229,44 @@ function App() {
 
                 <button onClick={() => setView('attendance')} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white p-8 rounded-[2rem] shadow-xl shadow-indigo-100 flex flex-col items-center justify-center gap-2 group active:scale-[0.98] transition-all">
                   <span className="text-2xl font-black uppercase tracking-tight">Faire l'appel</span>
-                  <span className="text-xs text-indigo-100 font-bold uppercase tracking-widest opacity-80">Séance du {format(new Date(), 'dd MMMM yyyy', { locale: fr })}</span>
+                  <span className="text-xs text-indigo-100 font-bold uppercase tracking-widest opacity-80 capitalize">{format(new Date(), 'EEEE d MMMM yyyy', { locale: fr })}</span>
                 </button>
               </div>
             )}
 
             {view === 'attendance' && (
               <div className="space-y-6">
-                {/* DATE SELECTOR */}
-                <div className="bg-white border border-slate-200 p-6 rounded-3xl flex flex-col items-center gap-4 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600">Choisir la date</p>
-                  <div className="flex items-center gap-6">
+                {/* DATE SELECTOR REVISITÉ */}
+                <div className="bg-white border border-slate-200 p-6 rounded-3xl flex flex-col items-center gap-4 shadow-sm relative">
+                   <div className="absolute top-4 left-4 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Session</div>
+                  <p className="text-sm font-black text-slate-800 uppercase pt-4">{format(attendanceDate, 'EEEE d MMMM yyyy', { locale: fr })}</p>
+                  <div className="flex items-center gap-8">
                     <button onClick={() => { const d = new Date(attendanceDate); d.setDate(d.getDate()-1); setAttendanceDate(d); }} className="p-3 bg-slate-50 rounded-xl hover:bg-indigo-100 transition-colors"><ChevronLeft size={24}/></button>
-                    <input type="date" value={format(attendanceDate, 'yyyy-MM-dd')} onChange={e => setAttendanceDate(parseISO(e.target.value))} className="bg-transparent font-black text-2xl text-slate-900 outline-none cursor-pointer text-center" />
+                    <div className="relative">
+                      <Calendar className="text-indigo-500" size={24}/>
+                      <input type="date" value={format(attendanceDate, 'yyyy-MM-dd')} onChange={e => setAttendanceDate(parseISO(e.target.value))} className="absolute inset-0 opacity-0 cursor-pointer" />
+                    </div>
                     <button onClick={() => { const d = new Date(attendanceDate); d.setDate(d.getDate()+1); setAttendanceDate(d); }} className="p-3 bg-slate-50 rounded-xl hover:bg-indigo-100 transition-colors"><ChevronRight size={24}/></button>
                   </div>
                 </div>
 
                 <div className="relative">
                   <Search className="absolute left-4 top-4 text-slate-300" size={20} />
-                  <input type="text" placeholder="Trouver un membre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full p-4 pl-12 bg-white border border-slate-200 rounded-2xl outline-none focus:border-indigo-500 shadow-sm font-medium" />
+                  <input type="text" placeholder="Rechercher un membre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full p-4 pl-12 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 ring-indigo-500 shadow-sm font-medium" />
                 </div>
 
                 <div className="space-y-3">
                   {members.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase())).map(m => (
                     <div key={m.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4 transition-all">
-                      <p className="font-bold text-slate-800 text-sm text-center sm:text-left">{m.name}</p>
+                      <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${attendance[m.id] === 'Présent' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>{m.name.charAt(0)}</div>
+                        <p className="font-bold text-slate-800 text-sm truncate">{m.name}</p>
+                      </div>
                       <div className="flex gap-1.5 w-full sm:w-auto">
                         {[
-                          { l: 'ABSENT', v: 'Absent', c: 'bg-red-50 text-red-600', ac: 'bg-red-600 text-white' },
-                          { l: 'NGANT', v: 'Excusé', c: 'bg-amber-50 text-amber-600', ac: 'bg-amber-600 text-white' },
-                          { l: 'PRÉSENT', v: 'Présent', c: 'bg-indigo-50 text-indigo-600', ac: 'bg-indigo-600 text-white' },
+                          { l: 'ABSENT', v: 'Absent', ac: 'bg-red-600 text-white' },
+                          { l: 'NGANT', v: 'Excusé', ac: 'bg-amber-600 text-white' },
+                          { l: 'PRÉSENT', v: 'Présent', ac: 'bg-indigo-600 text-white' },
                         ].map((btn) => (
                           <button key={btn.v} onClick={() => setAttendance({...attendance, [m.id]: btn.v})} className={`flex-1 sm:flex-none px-4 py-3 rounded-xl font-black text-[9px] uppercase transition-all ${attendance[m.id] === btn.v ? btn.ac + ' shadow-md scale-105' : 'bg-slate-50 text-slate-300'}`}>
                             {btn.l}
@@ -262,7 +277,7 @@ function App() {
                   ))}
                 </div>
 
-                <div className="fixed bottom-24 left-0 right-0 px-4 md:px-0 md:static flex justify-center">
+                <div className="fixed bottom-24 left-0 right-0 px-4 md:px-0 md:static flex justify-center z-40">
                    <button onClick={saveAttendance} disabled={saving} className="w-full max-w-sm py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all">
                     {saving ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>}
                     VALIDER L'APPEL
@@ -281,7 +296,7 @@ function App() {
                   {[...new Set(history.map(h => h.date))].sort((a,b) => new Date(b)-new Date(a)).map(date => (
                     <div key={date} className="bg-white border border-slate-100 p-5 rounded-2xl flex justify-between items-center shadow-sm">
                       <div>
-                        <p className="font-black text-slate-900 text-sm uppercase tracking-wide">{format(parseISO(date), 'dd MMMM yyyy', { locale: fr })}</p>
+                        <p className="font-black text-slate-900 text-sm uppercase tracking-wide">{format(parseISO(date), 'EEEE d MMMM yyyy', { locale: fr })}</p>
                         <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest">{history.filter(h => h.date === date && h.status === 'Présent').length} présents</p>
                       </div>
                       <button onClick={() => generatePDF(date)} className="p-3 bg-slate-50 rounded-xl hover:bg-indigo-600 hover:text-white transition-colors"><FileDown size={20}/></button>
