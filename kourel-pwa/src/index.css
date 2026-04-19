@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   -webkit-tap-highlight-color: transparent;
@@ -11,12 +13,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   user-select: none;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-
-/* Utilitaires personnalisés pour conserver le style iOS */
-@theme {
-  --shadow-ios: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
-  --radius-ios: 20px;
 }
 
 .no-scrollbar::-webkit-scrollbar {
