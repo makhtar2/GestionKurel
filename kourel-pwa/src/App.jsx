@@ -55,6 +55,10 @@ function App() {
     });
   }, [history, selectedMonth, histSearch, histStatus]);
 
+  const sessionsList = useMemo(() => {
+    return [...new Set(history.map(h => h.date))].sort((a,b) => new Date(b) - new Date(a));
+  }, [history]);
+
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
@@ -196,29 +200,30 @@ function App() {
   const generateFilteredPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(22); doc.setTextColor(0, 51, 98); doc.text("SAYTU KUREL", 14, 20);
-    autoTable(doc, { startY: 40, head: [['NOM ET PRENOM', 'STATUT', 'DATE']], body: filteredHistory.map(h => [h.members?.name.toUpperCase(), h.status.toUpperCase(), h.date]), headStyles: { fillColor: [0, 51, 98] } });
+    autoTable(doc, { 
+      startY: 40, head: [['NOM ET PRENOM', 'STATUT', 'DATE']], 
+      body: filteredHistory.map(h => [h.members?.name.toUpperCase(), h.status.toUpperCase(), h.date]),
+      headStyles: { fillColor: [0, 51, 98] }
+    });
     doc.save('rapport.pdf');
   };
 
   const GoldGradientText = ({ children, className = "" }) => (
-    <span className={`bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] bg-clip-text text-transparent drop-shadow-[0_1.5px_1.5px_rgba(0,0,0,0.15)] ${className}`}>
+    <span className={`bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] bg-clip-text text-transparent drop-shadow-[0_2px_3px_rgba(0,0,0,0.2)] ${className}`}>
       {children}
     </span>
   );
 
   const GoldGradientBtn = ({ onClick, children, className = "", disabled = false }) => (
-    <button onClick={onClick} disabled={disabled} className={`bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] text-white font-black uppercase tracking-widest transition-all active:scale-95 shadow-xl shadow-[#f0bd53]/20 drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.2)] ${className}`}>
+    <button onClick={onClick} disabled={disabled} className={`bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] text-white font-black uppercase tracking-widest transition-all active:scale-95 shadow-xl shadow-[#f0bd53]/20 drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.25)] ${className}`}>
       {children}
     </button>
   );
 
   const LogoSceau = ({ size = "w-32 h-32", withAnimation = false }) => (
     <div className={`relative ${size} mx-auto ${withAnimation ? 'animate-bounce-slow' : ''}`}>
-      {/* Anneau d'Or Extérieur */}
       <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#dc9b3f] via-[#f3df8f] to-[#dc9b3f] p-1.5 shadow-2xl">
-        {/* Anneau Bleu Nuit */}
         <div className="w-full h-full rounded-full bg-[#003362] p-1">
-          {/* Fond Blanc Interne */}
           <div className="w-full h-full rounded-full bg-white flex items-center justify-center p-2 overflow-hidden">
             <img src={logoDahira} alt="Logo Dahira" className="w-full h-full object-contain" />
           </div>
@@ -273,30 +278,24 @@ function App() {
       )}
 
       {user && (
-        <header className="sticky top-0 z-[80] bg-[#003362] text-white shadow-xl h-20 border-b-2 border-[#f0bd53]">
+        <header className="sticky top-0 z-[80] bg-[#003362] text-white shadow-xl h-24 border-b-2 border-[#f0bd53]">
           <div className="max-w-4xl mx-auto px-4 h-full flex justify-between items-center relative">
             <div className="flex items-center gap-3">
-              <div className="translate-y-2">
-                <LogoSceau size="w-16 h-16" />
+              <div className="translate-y-4">
+                <LogoSceau size="w-24 h-24" />
               </div>
-              <span className="font-bold tracking-tighter text-lg uppercase hidden sm:inline ml-2">Saytu Kurel</span>
+              <span className="font-bold tracking-tighter text-xl uppercase hidden sm:inline ml-4 pt-2">Saytu Kurel</span>
             </div>
-            <nav className="hidden md:flex gap-8">
+            <nav className="hidden md:flex gap-8 pt-2">
               {navItems.map(item => (
                 <button key={item.id} onClick={() => setView(item.id)} className={`flex items-center gap-2 text-xs font-black uppercase transition-colors ${view === item.id ? 'text-[#f0bd53]' : 'text-slate-300 hover:text-white'}`}>
                   <item.icon size={16} /> {item.label}
                 </button>
               ))}
             </nav>
-            <button onClick={() => confirmAction("Déconnexion", "Quitter l'espace ?", () => supabase.auth.signOut().then(() => window.location.reload()))} className="p-1 text-slate-300 hover:text-[#f0bd53]"><LogOut size={22}/></button>
+            <button onClick={() => confirmAction("Déconnexion", "Quitter l'espace ?", () => supabase.auth.signOut().then(() => window.location.reload()))} className="p-1 text-slate-300 hover:text-[#f0bd53] pt-2"><LogOut size={22}/></button>
           </div>
         </header>
-      )}
-
-      {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white font-black text-[10px] uppercase tracking-widest z-[150] bg-[#003362] animate-in slide-in-from-top-4`}>
-          {toast.msg}
-        </div>
       )}
 
       <main className="flex-1 w-full max-w-4xl mx-auto p-4 md:p-12 pb-32">
@@ -313,7 +312,7 @@ function App() {
                 <input type="email" placeholder="Identifiant" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-sm" />
                 <input type="password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-sm" />
               </div>
-              <GoldGradientBtn className="w-full py-5 rounded-2xl text-[11px]">Accéder au Registre</GoldGradientBtn>
+              <GoldGradientBtn className="w-full py-5 rounded-2xl text-[11px]">Se Connecter</GoldGradientBtn>
             </form>
           </div>
         )}
@@ -339,7 +338,7 @@ function App() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[{ label: 'Sessions', value: stats.totalSessions, color: 'text-[#003362]' }, { label: 'Assiduité', value: `${stats.globalRate}%`, color: 'text-emerald-700' }, { label: 'Membres', value: members.length, color: 'text-[#dc9b3f]' }].map((s, i) => (
                     <div key={i} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-lg text-center border-b-8 border-b-slate-50">
-                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] mb-3">{s.label}</p>
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3">{s.label}</p>
                       <p className={`text-5xl font-black ${s.color}`}>{s.value}</p>
                     </div>
                   ))}
@@ -387,6 +386,91 @@ function App() {
                   ))}
                 </div>
                 <div className="fixed bottom-24 left-0 right-0 px-6 z-[100]"><GoldGradientBtn onClick={() => confirmAction("Validation", "Enregistrer la séance ?", saveAttendance)} disabled={saving} className="w-full max-w-sm py-6 rounded-[2.5rem] text-[12px] tracking-[0.4em] mx-auto block">VALIDER L'APPEL</GoldGradientBtn></div>
+              </div>
+            )}
+
+            {view === 'history' && (
+              <div className="space-y-8">
+                <div className="bg-white border border-slate-200 p-8 rounded-[2rem] space-y-6 shadow-lg">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3"><ClipboardList className="text-[#003362]" size={32}/><h2 className="text-2xl font-black uppercase tracking-tight text-[#003362]">Archives</h2></div>
+                    <button onClick={generateFilteredPDF} disabled={filteredHistory.length === 0} className="bg-[#003362] text-white px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">Export PDF</button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" />
+                    <input type="text" placeholder="Membre..." value={histSearch} onChange={e => setHistSearch(e.target.value)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" />
+                    <select value={histStatus} onChange={e => setHistStatus(e.target.value)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs"><option value="Tous">Tous Statuts</option><option value="Présent">Présents</option><option value="Absent">Absents</option><option value="Excusé">NGANT</option></select>
+                  </div>
+                </div>
+                <div className="space-y-6">
+                  {sessionsList.filter(d => d.startsWith(selectedMonth)).map(date => (
+                    <div key={date} className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm flex justify-between items-center">
+                       <p className="font-black text-[#003362] uppercase text-sm">{format(parseISO(date), 'EEEE d MMMM yyyy', { locale: fr })}</p>
+                       <div className="flex items-center gap-2">
+                          <button onClick={() => { setAttendanceDate(parseISO(date)); setView('attendance'); }} className="p-3 bg-slate-50 text-[#003362] rounded-xl hover:bg-[#003362] hover:text-white transition-all"><Pencil size={18}/></button>
+                          {profile?.role === 'coordinateur' && <button onClick={() => deleteSession(date)} className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all"><Trash2 size={18}/></button>}
+                       </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {view === 'mgmt' && (
+              <div className="space-y-10">
+                <div className="flex bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm overflow-hidden max-w-sm">
+                   <button onClick={() => setMgmtTab('members')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'members' ? 'bg-[#003362] text-white shadow-lg' : 'text-slate-400'}`}>Membres</button>
+                   <button onClick={() => setMgmtTab('sessions')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'sessions' ? 'bg-[#003362] text-white shadow-lg' : 'text-slate-400'}`}>Sessions</button>
+                   {profile?.role === 'coordinateur' && <button onClick={() => setMgmtTab('users')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'users' ? 'bg-[#003362] text-white shadow-lg' : 'text-slate-400'}`}>Admin</button>}
+                </div>
+
+                {mgmtTab === 'members' && (
+                  <div className="space-y-6">
+                    {profile?.role === 'surveillant' && (
+                      <div className="bg-white border border-[#003362]/10 p-10 rounded-[3rem] space-y-6 shadow-xl relative overflow-hidden">
+                        <GoldGradientText className="text-[11px] font-black uppercase tracking-widest">{editingMember ? 'Modification' : 'Nouvelle Inscription'}</GoldGradientText>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <input type="text" placeholder="Nom Complet" value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} className="p-5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
+                          <input type="tel" placeholder="Téléphone" value={newMember.phone} onChange={e => setNewMember({...newMember, phone: e.target.value})} className="p-5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
+                        </div>
+                        <GoldGradientBtn onClick={handleAddOrUpdateMember} className="w-full py-5 rounded-xl text-[11px] tracking-[0.2em]">{editingMember ? 'Valider' : 'Inscrire'}</GoldGradientBtn>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 gap-3">
+                      {allMembers.map(m => (
+                        <div key={m.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 flex justify-between items-center shadow-sm">
+                          <div><p className="font-black text-slate-800 uppercase text-sm tracking-tight">{m.name}</p><p className="text-[10px] text-[#003362] font-black">{m.phone || 'SANS CONTACT'}</p></div>
+                          <div className="flex gap-2">
+                             {m.phone && <a href={`tel:${m.phone}`} className="p-3 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100"><Phone size={18}/></a>}
+                             {profile?.role === 'surveillant' && (
+                               <div className="flex gap-2">
+                                 <button onClick={() => { setEditingMember(m); setNewMember({name: m.name, phone: m.phone || ''}); window.scrollTo({top:0, behavior:'smooth'}); }} className="p-3 bg-slate-50 text-slate-600 rounded-xl border border-slate-200"><Pencil size={18}/></button>
+                                 <button onClick={() => handleDeleteMember(m.id)} className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-100"><Trash2 size={18}/></button>
+                               </div>
+                             )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {mgmtTab === 'sessions' && (
+                  <div className="grid gap-3">
+                    {sessionsList.map(date => (
+                      <div key={date} className="bg-white p-6 rounded-[2rem] border border-slate-100 flex justify-between items-center shadow-sm">
+                         <div className="space-y-1">
+                           <p className="font-black text-[#003362] uppercase text-sm">{format(parseISO(date), 'dd/MM/yyyy')}</p>
+                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{format(parseISO(date), 'EEEE', { locale: fr })}</p>
+                         </div>
+                         <div className="flex items-center gap-2">
+                           <button onClick={() => { setAttendanceDate(parseISO(date)); setView('attendance'); }} className="p-3 bg-slate-50 text-[#003362] rounded-xl hover:bg-[#003362] hover:text-white transition-all"><Pencil size={18}/></button>
+                           {profile?.role === 'coordinateur' && <button onClick={() => deleteSession(date)} className="p-3 bg-red-50 text-red-600 rounded-xl"><Trash2 size={18}/></button>}
+                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
