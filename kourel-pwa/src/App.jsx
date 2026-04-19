@@ -408,12 +408,10 @@ function App() {
                       {allMembers.map(m => (
                         <div key={m.id} className="bg-white p-5 border border-slate-100 rounded-2xl flex justify-between items-center shadow-sm">
                           <div><p className="font-bold text-sm text-slate-800 uppercase">{m.name}</p><p className="text-[10px] text-slate-400 font-bold">{m.phone || 'Pas de numéro'}</p></div>
-                          {profile?.role === 'surveillant' && (
-                            <div className="flex gap-2">
-                               {m.phone && <a href={`tel:${m.phone}`} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Phone size={16}/></a>}
-                               <button onClick={async () => { if(window.confirm('Changer le statut ?')) { await supabase.from('members').update({active: !m.active}).eq('id', m.id); loadKourelData(selectedKourel.id); }}} className={`p-2.5 rounded-xl border ${m.active ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`}><Users size={16}/></button>
-                            </div>
-                          )}
+                          <div className="flex gap-2">
+                             {m.phone && <a href={`tel:${m.phone}`} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Phone size={16}/></a>}
+                             <button onClick={async () => { if(window.confirm('Changer le statut ?')) { await supabase.from('members').update({active: !m.active}).eq('id', m.id); loadKourelData(selectedKourel.id); }}} className={`p-2.5 rounded-xl border ${m.active ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`}><Users size={16}/></button>
+                          </div>
                         </div>
                       ))}
                     </div>
