@@ -281,7 +281,7 @@ function App() {
               <div className="absolute -inset-4 bg-[#f0bd53]/20 rounded-full blur-3xl -z-10 animate-pulse"></div>
             </div>
             <form onSubmit={handleLogin} className="w-full max-w-sm bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-2xl space-y-8 relative overflow-hidden">
-              <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '150px' }}></div>
+              <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '150px' }}></div>
               <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f]"></div>
               <div className="text-center space-y-1 relative z-10">
                 <h1 className="text-xl font-black uppercase tracking-tight text-[#003362]">Espace Saytu</h1>
@@ -291,7 +291,10 @@ function App() {
                 <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" />
                 <input type="password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" />
               </div>
-              <button className="w-full py-4 rounded-xl bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] text-white font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all shadow-lg shadow-[#f0bd53]/20 relative z-10">Se Connecter</button>
+              <button className="w-full py-4 rounded-xl bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] text-white font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all shadow-lg shadow-[#f0bd53]/20 relative z-10 overflow-hidden">
+                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '100px' }}></div>
+                <span className="relative z-10">Se Connecter</span>
+              </button>
             </form>
           </div>
         )}
@@ -302,9 +305,12 @@ function App() {
             <div className="grid gap-3">
               {kourels.map(k => (
                 <div key={k.id} onClick={() => { setSelectedKourel(k); loadKourelData(k.id); setView('dashboard'); }} className="p-6 bg-white border border-slate-100 rounded-2xl flex justify-between items-center cursor-pointer hover:border-[#003362] transition-all shadow-sm group relative overflow-hidden">
-                  <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '120px' }}></div>
+                  <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '120px' }}></div>
                   <div className="space-y-1 relative z-10"><p className="font-black text-slate-900 group-hover:text-[#003362] uppercase text-sm">{k.name}</p><p className="text-[10px] text-[#dc9b3f] font-black uppercase">{k.location}</p></div>
-                  <div className="bg-[#003362] text-white px-4 py-2 rounded-lg font-black text-sm relative z-10">{kourelStats[k.id]?.rate}%</div>
+                  <div className="bg-[#003362] text-white px-4 py-2 rounded-lg font-black text-sm relative z-10 overflow-hidden">
+                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '50px' }}></div>
+                    <span className="relative z-10">{kourelStats[k.id]?.rate}%</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -317,40 +323,43 @@ function App() {
               <div className="space-y-6">
                 <div className="relative w-full h-40 md:h-56 rounded-[2.5rem] overflow-hidden shadow-2xl mb-8 group">
                   <img src={bannerApp} alt="Bannière" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#003362] via-[#003362]/20 to-transparent"></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#003362] via-[#003362]/40 to-transparent"></div>
                   <div className="absolute bottom-8 left-8 right-8 flex justify-between items-end">
                     <div className="space-y-1">
-                      <p className="text-white/70 text-[10px] font-black uppercase tracking-[0.4em]">Dahira Moussa Ba</p>
+                      <p className="text-[#f0bd53] text-[9px] font-black uppercase tracking-[0.3em]">DAHIRA NUXBATUL HAXABATIL XADIIMIYYAH</p>
                       <h1 className="text-2xl md:text-4xl font-black text-white uppercase tracking-tighter leading-none">Saytu Nuxba</h1>
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-[#003362] text-white p-8 rounded-[2rem] space-y-6 shadow-xl relative overflow-hidden">
-                   <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '200px' }}></div>
+                   <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '150px' }}></div>
                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#dc9b3f]/10 rounded-full blur-2xl"></div>
                    <h2 className="text-2xl font-black uppercase tracking-tighter relative z-10">{selectedKourel.name}</h2>
                    <div className="grid grid-cols-2 gap-4 relative z-10">
-                      <div className="bg-white/5 p-5 rounded-2xl border border-white/10 backdrop-blur-sm">
-                        <GoldGradientText className="text-3xl font-black">{stats.globalRate}%</GoldGradientText>
-                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Assiduité</p>
+                      <div className="bg-white/5 p-5 rounded-2xl border border-white/10 backdrop-blur-sm relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '80px' }}></div>
+                        <GoldGradientText className="text-3xl font-black relative z-10">{stats.globalRate}%</GoldGradientText>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1 relative z-10">Assiduité</p>
                       </div>
-                      <div className="bg-white/5 p-5 rounded-2xl border border-white/10 backdrop-blur-sm">
-                        <p className="text-3xl font-black">{members.length}</p>
-                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Membres Actifs</p>
+                      <div className="bg-white/5 p-5 rounded-2xl border border-white/10 backdrop-blur-sm relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '80px' }}></div>
+                        <p className="text-3xl font-black relative z-10">{members.length}</p>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1 relative z-10">Membres Actifs</p>
                       </div>
                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                    {profile?.role === 'surveillant' && (
-                     <button onClick={() => setView('attendance')} className="bg-gradient-to-r from-[#dc9b3f] to-[#f0bd53] text-white p-6 rounded-2xl shadow-xl flex items-center justify-between group active:scale-95 transition-all">
-                        <div className="text-left"><p className="font-black uppercase text-xs tracking-widest">Faire l'appel</p><p className="text-[9px] opacity-80 font-bold uppercase">{format(new Date(), 'EEEE d MMMM', { locale: fr })}</p></div>
-                        <div className="bg-white/20 p-2 rounded-lg group-hover:rotate-12 transition-transform"><CheckCircle2 size={24}/></div>
+                     <button onClick={() => setView('attendance')} className="bg-gradient-to-r from-[#dc9b3f] to-[#f0bd53] text-white p-6 rounded-2xl shadow-xl flex items-center justify-between group active:scale-95 transition-all relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '100px' }}></div>
+                        <div className="text-left relative z-10"><p className="font-black uppercase text-xs tracking-widest">Faire l'appel</p><p className="text-[9px] opacity-80 font-bold uppercase">{format(new Date(), 'EEEE d MMMM', { locale: fr })}</p></div>
+                        <div className="bg-white/20 p-2 rounded-lg group-hover:rotate-12 transition-transform relative z-10"><CheckCircle2 size={24}/></div>
                      </button>
                    )}
-                   <button onClick={() => setView('history')} className="bg-white border border-slate-100 p-6 rounded-2xl flex items-center justify-between hover:border-[#003362] transition-all shadow-sm relative overflow-hidden">
-                      <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '100px' }}></div>
+                   <button onClick={() => setView('history')} className="bg-white border border-slate-100 p-6 rounded-2xl flex items-center justify-between hover:border-[#003362] transition-all shadow-sm relative overflow-hidden group">
+                      <div className="absolute inset-0 opacity-[0.08] pointer-events-none group-hover:opacity-15 transition-opacity" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '100px' }}></div>
                       <div className="text-left relative z-10"><p className="font-black text-[#003362] uppercase text-xs tracking-widest">Historique</p><p className="text-[9px] text-slate-400 font-bold uppercase">Consulter les archives</p></div>
                       <ClipboardList className="text-slate-200 relative z-10" size={24} />
                    </button>
@@ -361,7 +370,7 @@ function App() {
             {view === 'attendance' && (
               <div className="space-y-6 pb-20">
                 <div className="bg-white border border-slate-200 p-6 rounded-2xl flex flex-col items-center gap-4 shadow-sm relative overflow-hidden">
-                  <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '150px' }}></div>
+                  <div className="absolute inset-0 opacity-[0.08] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '150px' }}></div>
                   <p className="text-[10px] font-black text-[#003362] uppercase tracking-[0.3em] relative z-10">{format(attendanceDate, 'EEEE d MMMM yyyy', { locale: fr })}</p>
                   <div className="flex items-center gap-10 relative z-10">
                     <button onClick={() => setAttendanceDate(new Date(attendanceDate.setDate(attendanceDate.getDate()-1)))} className="p-2 bg-slate-50 text-[#003362] rounded-lg"><ChevronLeft size={20}/></button>
@@ -371,25 +380,35 @@ function App() {
                 </div>
                 <div className="space-y-3">
                   {members.map(m => (
-                    <div key={m.id} className="bg-white p-4 rounded-xl border border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm">
-                      <p className="font-black text-slate-800 uppercase text-xs truncate max-w-[200px]">{m.name}</p>
-                      <div className="flex gap-1">
+                    <div key={m.id} className="bg-white p-4 rounded-xl border border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm relative overflow-hidden group">
+                      <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '100px' }}></div>
+                      <p className="font-black text-slate-800 uppercase text-xs truncate max-w-[200px] relative z-10">{m.name}</p>
+                      <div className="flex gap-1 relative z-10">
                         {[{ l: 'ABSENT', v: 'Absent', c: 'bg-red-600' }, { l: 'NGANT', v: 'Excusé', c: 'bg-[#dc9b3f]' }, { l: 'PRÉSENT', v: 'Présent', c: 'bg-[#003362]' }].map((btn) => (
-                          <button key={btn.v} onClick={() => setAttendance({...attendance, [m.id]: btn.v})} className={`px-4 py-2 rounded-lg font-black text-[8px] transition-all ${attendance[m.id] === btn.v ? `${btn.c} text-white shadow-lg` : 'bg-slate-50 text-slate-300'}`}>{btn.l}</button>
+                          <button key={btn.v} onClick={() => setAttendance({...attendance, [m.id]: btn.v})} className={`px-4 py-2 rounded-lg font-black text-[8px] transition-all relative overflow-hidden ${attendance[m.id] === btn.v ? `${btn.c} text-white shadow-lg` : 'bg-slate-50 text-slate-300'}`}>
+                            {attendance[m.id] === btn.v && <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '40px' }}></div>}
+                            <span className="relative z-10">{btn.l}</span>
+                          </button>
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="fixed bottom-24 left-0 right-0 px-6 z-[100]"><button onClick={() => confirmAction("Validation", "Valider la séance ?", saveAttendance)} disabled={saving} className="w-full max-w-xs mx-auto py-4 rounded-xl bg-[#003362] text-white font-black uppercase text-[10px] tracking-widest shadow-2xl block">{saving ? 'EN COURS...' : 'VALIDER L\'APPEL'}</button></div>
+                <div className="fixed bottom-24 left-0 right-0 px-6 z-[100]"><button onClick={() => confirmAction("Validation", "Valider la séance ?", saveAttendance)} disabled={saving} className="w-full max-w-xs mx-auto py-4 rounded-xl bg-[#003362] text-white font-black uppercase text-[10px] tracking-widest shadow-2xl block relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '100px' }}></div>
+                  <span className="relative z-10">{saving ? 'EN COURS...' : 'VALIDER L\'APPEL'}</span>
+                </button></div>
               </div>
             )}
 
             {view === 'history' && (
               <div className="space-y-6">
                 <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-lg text-left relative overflow-hidden">
-                  <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '150px' }}></div>
-                  <div className="flex justify-between items-center relative z-10"><h2 className="text-sm font-black uppercase tracking-tight text-[#003362]">Archives</h2><button onClick={() => generateFilteredPDF()} disabled={filteredHistory.length === 0} className="bg-[#003362] text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase shadow-lg">Export PDF</button></div>
+                  <div className="absolute inset-0 opacity-[0.08] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '150px' }}></div>
+                  <div className="flex justify-between items-center relative z-10"><h2 className="text-sm font-black uppercase tracking-tight text-[#003362]">Archives</h2><button onClick={() => generateFilteredPDF()} disabled={filteredHistory.length === 0} className="bg-[#003362] text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase shadow-lg relative overflow-hidden">
+                    <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '50px' }}></div>
+                    <span className="relative z-10">Export PDF</span>
+                  </button></div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 relative z-10">
                     <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-xs" />
                     <input type="text" placeholder="Membre..." value={histSearch} onChange={e => setHistSearch(e.target.value)} className="p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-xs" />
@@ -398,15 +417,17 @@ function App() {
                 </div>
                 <div className="space-y-3">
                   {sessionsList.filter(d => d.startsWith(selectedMonth)).map(date => (
-                    <div key={date} className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+                    <div key={date} className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden group">
                        <button onClick={() => setExpandedSession(expandedSession === date ? null : date)} className="w-full p-6 flex justify-between items-center relative">
+                         <div className="absolute inset-0 opacity-[0.06] pointer-events-none group-hover:opacity-10 transition-opacity" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '100px' }}></div>
                          <div className="text-left space-y-1 relative z-10"><p className="font-black text-[#003362] uppercase text-xs">{format(parseISO(date), 'EEEE d MMMM yyyy', { locale: fr })}</p></div>
                          <div className="flex items-center gap-3 relative z-10"><button onClick={(e) => { e.stopPropagation(); generateFilteredPDF(date); }} className="p-2 text-emerald-600 bg-emerald-50 rounded-lg"><FileDown size={16}/></button>{expandedSession === date ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}</div>
                        </button>
                        {expandedSession === date && (
-                         <div className="p-6 bg-slate-50 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-2">
+                         <div className="p-6 bg-slate-50 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-2 relative overflow-hidden">
+                           <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '120px' }}></div>
                            {history.filter(h => h.date === date).map(h => (
-                             <div key={h.id} className="bg-white p-3 rounded-lg border border-slate-100 flex justify-between items-center"><p className="font-bold text-[10px] uppercase text-slate-700">{h.members?.name}</p><span className={`text-[7px] font-black px-2 py-0.5 rounded ${h.status === 'Présent' ? 'bg-emerald-50 text-emerald-700' : h.status === 'Absent' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{h.status.toUpperCase()}</span></div>
+                             <div key={h.id} className="bg-white p-3 rounded-lg border border-slate-100 flex justify-between items-center relative z-10"><p className="font-bold text-[10px] uppercase text-slate-700">{h.members?.name}</p><span className={`text-[7px] font-black px-2 py-0.5 rounded ${h.status === 'Présent' ? 'bg-emerald-50 text-emerald-700' : h.status === 'Absent' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{h.status.toUpperCase()}</span></div>
                            ))}
                          </div>
                        )}
@@ -420,45 +441,59 @@ function App() {
 
         {!selectedKourel && ['dashboard', 'attendance', 'history'].includes(view) && (
           <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-6 animate-in fade-in">
-             <div className="bg-slate-50 w-24 h-24 rounded-full flex items-center justify-center shadow-inner">
-               <TrendingUp className="text-slate-200" size={48} />
+             <div className="bg-slate-50 w-24 h-24 rounded-full flex items-center justify-center shadow-inner relative overflow-hidden">
+               <div className="absolute inset-0 opacity-10" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '50px' }}></div>
+               <TrendingUp className="text-slate-200 relative z-10" size={48} />
              </div>
              <div className="space-y-2">
                <h3 className="text-lg font-black uppercase text-[#003362]">Kourel non sélectionné</h3>
                <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto">Veuillez d'abord choisir un kourel dans la liste pour accéder à ses données.</p>
              </div>
-             <button onClick={() => setView('selection')} className="px-8 py-4 bg-[#003362] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-[#003362]/20 active:scale-95 transition-all">Choisir un Kourel</button>
+             <button onClick={() => setView('selection')} className="px-8 py-4 bg-[#003362] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-[#003362]/20 active:scale-95 transition-all relative overflow-hidden">
+               <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '80px' }}></div>
+               <span className="relative z-10">Choisir un Kourel</span>
+             </button>
           </div>
         )}
 
         {view === 'mgmt' && (
           <div className="space-y-6 animate-in fade-in pb-20">
             <div className="flex bg-slate-100 p-1 rounded-2xl">
-              <button onClick={() => setMgmtTab('members')} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase transition-all ${mgmtTab === 'members' ? 'bg-[#003362] text-white shadow-lg' : 'text-slate-400'}`}>Membres</button>
-              <button onClick={() => setMgmtTab('access')} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase transition-all ${mgmtTab === 'access' ? 'bg-[#003362] text-white shadow-lg' : 'text-slate-400'}`}>Accès</button>
+              <button onClick={() => setMgmtTab('members')} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase transition-all relative overflow-hidden ${mgmtTab === 'members' ? 'bg-[#003362] text-white shadow-lg' : 'text-slate-400'}`}>
+                {mgmtTab === 'members' && <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '60px' }}></div>}
+                <span className="relative z-10">Membres</span>
+              </button>
+              <button onClick={() => setMgmtTab('access')} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase transition-all relative overflow-hidden ${mgmtTab === 'access' ? 'bg-[#003362] text-white shadow-lg' : 'text-slate-400'}`}>
+                {mgmtTab === 'access' && <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '60px' }}></div>}
+                <span className="relative z-10">Accès</span>
+              </button>
             </div>
 
             {mgmtTab === 'members' && (
               selectedKourel ? (
                 <div className="space-y-6">
                   <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl space-y-6 relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '150px' }}></div>
+                    <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '150px' }}></div>
                     <h3 className="text-sm font-black uppercase text-[#003362] relative z-10">{editingMember ? 'Modifier Membre' : 'Nouveau Membre'}</h3>
                     <div className="space-y-3 relative z-10">
                       <input type="text" placeholder="Nom Complet" value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none font-bold text-sm" />
                       <input type="tel" placeholder="Téléphone" value={newMember.phone} onChange={e => setNewMember({...newMember, phone: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none font-bold text-sm" />
                       <div className="flex gap-2">
                         {editingMember && <button onClick={() => { setEditingMember(null); setNewMember({name:'', phone:''}); }} className="flex-1 py-4 rounded-xl bg-slate-100 text-slate-400 font-black uppercase text-[10px]">Annuler</button>}
-                        <button onClick={handleAddOrUpdateMember} disabled={saving} className="flex-[2] py-4 rounded-xl bg-[#003362] text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-[#003362]/20">{saving ? '...' : editingMember ? 'Mettre à jour' : 'Ajouter'}</button>
+                        <button onClick={handleAddOrUpdateMember} disabled={saving} className="flex-[2] py-4 rounded-xl bg-[#003362] text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-[#003362]/20 relative overflow-hidden">
+                          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '80px' }}></div>
+                          <span className="relative z-10">{saving ? '...' : editingMember ? 'Mettre à jour' : 'Ajouter'}</span>
+                        </button>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     {allMembers.map(m => (
-                      <div key={m.id} className="p-4 bg-white border border-slate-50 rounded-xl flex justify-between items-center group shadow-sm">
-                        <div className="text-left"><p className={`font-black uppercase text-[11px] ${m.active ? 'text-slate-800' : 'text-slate-300 line-through'}`}>{m.name}</p><p className="text-[9px] text-slate-400 font-bold">{m.phone}</p></div>
-                        <div className="flex gap-1">
+                      <div key={m.id} className="p-4 bg-white border border-slate-50 rounded-xl flex justify-between items-center group shadow-sm relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '100px' }}></div>
+                        <div className="text-left relative z-10"><p className={`font-black uppercase text-[11px] ${m.active ? 'text-slate-800' : 'text-slate-300 line-through'}`}>{m.name}</p><p className="text-[9px] text-slate-400 font-bold">{m.phone}</p></div>
+                        <div className="flex gap-1 relative z-10">
                           <button onClick={() => { setEditingMember(m); setNewMember({name: m.name, phone: m.phone}); window.scrollTo({top:0, behavior:'smooth'}); }} className="p-2 text-[#003362] hover:bg-slate-50 rounded-lg"><Pencil size={16}/></button>
                           <button onClick={() => handleDeleteMember(m.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
                         </div>
@@ -467,12 +502,16 @@ function App() {
                   </div>
                 </div>
               ) : (
-                <div className="p-12 text-center space-y-4 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
-                  <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-sm">
+                <div className="p-12 text-center space-y-4 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '150px' }}></div>
+                  <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-sm relative z-10">
                     <Users className="text-slate-300" size={32} />
                   </div>
-                  <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Sélectionnez un Kourel pour gérer ses membres</p>
-                  <button onClick={() => setView('selection')} className="px-6 py-3 bg-[#003362] text-white rounded-xl font-black text-[10px] uppercase">Voir les Kourels</button>
+                  <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest relative z-10">Sélectionnez un Kourel pour gérer ses membres</p>
+                  <button onClick={() => setView('selection')} className="px-6 py-3 bg-[#003362] text-white rounded-xl font-black text-[10px] uppercase relative overflow-hidden z-10">
+                    <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '50px' }}></div>
+                    <span className="relative z-10">Voir les Kourels</span>
+                  </button>
                 </div>
               )
             )}
@@ -480,8 +519,8 @@ function App() {
             {mgmtTab === 'access' && (
               <div className="space-y-4">
                 {allProfiles.filter(p => p.role === 'visiteur' || profile?.role === 'coordinateur').map(p => (
-                  <div key={p.id} className="p-6 bg-white border border-slate-100 rounded-2xl space-y-4 shadow-sm relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '150px' }}></div>
+                  <div key={p.id} className="p-6 bg-white border border-slate-100 rounded-2xl space-y-4 shadow-sm relative overflow-hidden group">
+                    <div className="absolute inset-0 opacity-[0.12] pointer-events-none group-hover:opacity-15 transition-opacity" style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: '150px' }}></div>
                     <div className="flex justify-between items-start relative z-10">
                       <div className="text-left">
                         <p className="font-black text-[#003362] uppercase text-xs">{p.email}</p>
