@@ -197,20 +197,57 @@ function App() {
     const data = date ? history.filter(h => h.date === date) : filteredHistory;
     const periodLabel = date ? format(parseISO(date), 'dd MMMM yyyy', { locale: fr }) : format(parseISO(selectedMonth + "-01"), 'MMMM yyyy', { locale: fr });
 
-    doc.setFontSize(22); doc.setTextColor(0, 51, 98); doc.text("SAYTU NUXBA", 14, 20);
-    doc.setFontSize(12); doc.setTextColor(30, 41, 59); 
-    doc.text(`Rapport de présence - ${selectedKourel.name}`, 14, 28);
-    doc.text(`Période : ${periodLabel}`, 14, 34);
+    // HEADER INSTITUTIONNEL
+    doc.setFillColor(0, 51, 98); // Bleu Nuit
+    doc.rect(0, 0, 210, 45, 'F');
+    
+    doc.setFontSize(24);
+    doc.setTextColor(255, 255, 255);
+    doc.text("SAYTU NUXBA", 14, 25);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(220, 155, 63); // Or
+    doc.text("Dahira Nuxbatul Haqabatil Xadiimiyyah", 14, 32);
+    
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Rapport : ${selectedKourel.name}`, 14, 40);
 
+    // BLOC DE STATS
+    const total = data.length;
+    const presents = data.filter(h => h.status === 'Présent').length;
+    const absents = data.filter(h => h.status === 'Absent').length;
+    const excusés = data.filter(h => h.status === 'Excusé').length;
+    const rate = total > 0 ? Math.round((presents / total) * 100) : 0;
+
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(14, 50, 182, 20, 3, 3, 'F');
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Total : ${total} | Présents : ${presents} | Absents : ${absents} | Ngant : ${excusés}`, 20, 62);
+    doc.setTextColor(5, 150, 105);
+    doc.setFont(undefined, 'bold');
+    doc.text(`TAUX DE PRÉSENCE : ${rate}%`, 140, 62);
+
+    // TABLEAU COLORÉ
     autoTable(doc, { 
-      startY: 42, 
+      startY: 75, 
       head: [['NOM ET PRENOM', 'STATUT', 'DATE']], 
       body: data.map(h => [h.members?.name.toUpperCase(), h.status.toUpperCase(), h.date]),
-      headStyles: { fillColor: [0, 51, 98], fontSize: 10 },
-      alternateRowStyles: { fillColor: [248, 250, 252] }
+      headStyles: { fillColor: [0, 51, 98], fontSize: 10, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 1) {
+          const status = data.cell.raw;
+          if (status === 'PRÉSENT') data.cell.styles.textColor = [5, 150, 105]; // Vert
+          if (status === 'ABSENT') data.cell.styles.textColor = [220, 38, 38]; // Rouge
+          if (status === 'EXCUSÉ') data.cell.styles.textColor = [220, 155, 63]; // Or/Ngant
+        }
+      }
     });
+
     doc.save(`Rapport_${selectedKourel.name}_${periodLabel}.pdf`);
-    showToast("PDF Téléchargé");
+    showToast("Rapport généré");
   };
 
   const GoldGradientText = ({ children, className = "" }) => (
@@ -238,11 +275,11 @@ function App() {
   );
 
   if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-white space-y-12">
+    <div className="h-screen flex flex-col items-center justify-center bg-white space-y-12 text-center p-12">
       <LogoSceau size="w-48 h-48" withAnimation={true} />
-      <div className="text-center space-y-4">
+      <div className="space-y-4">
         <Loader2 className="animate-spin text-[#003362] mx-auto" size={40} />
-        <p className="text-[11px] font-black text-[#003362] uppercase tracking-[0.4em] animate-pulse">Initialisation Saytu</p>
+        <p className="text-[11px] font-black text-[#003362] uppercase tracking-[0.4em] animate-pulse">Chargement Saytu Nuxba</p>
       </div>
     </div>
   );
@@ -306,9 +343,9 @@ function App() {
 
       <main className="flex-1 w-full max-w-4xl mx-auto p-0 md:p-12 pb-32">
         {view === 'login' && (
-          <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 space-y-12">
-            <LogoSceau size="w-48 h-48" withAnimation={true} />
-            <form onSubmit={handleLogin} className="w-full max-w-sm bg-white p-10 rounded-[3rem] border border-slate-100 shadow-2xl space-y-8 relative overflow-hidden">
+          <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 space-y-12 text-center">
+            <img src={logoDahira} alt="Logo" className="w-48 h-48 object-contain" />
+            <form onSubmit={handleLogin} className="w-full max-w-sm bg-white p-10 rounded-[3rem] border border-slate-100 shadow-2xl space-y-8 relative overflow-hidden text-left">
               <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f]"></div>
               <div className="text-center space-y-2">
                 <h1 className="text-2xl font-black uppercase tracking-tight text-[#003362]">Espace Saytu</h1>
@@ -341,58 +378,29 @@ function App() {
           <div className="animate-in fade-in">
             {view === 'dashboard' && (
               <div className="space-y-0">
-                {/* HERO STATS SECTION */}
                 <div className="bg-[#003362] text-white p-8 md:p-16 md:rounded-[3.5rem] space-y-10 shadow-2xl relative overflow-hidden">
                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#dc9b3f]/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
                    <div className="relative z-10 space-y-2">
                       <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#f0bd53]">Supervision Active</p>
                       <h2 className="text-3xl md:text-5xl font-black uppercase leading-tight tracking-tighter">{selectedKourel.name}</h2>
                    </div>
-                   
                    <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-8">
-                      <div className="space-y-1">
-                        <p className="text-[40px] font-black leading-none">{stats.totalSessions}</p>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Sessions</p>
-                      </div>
-                      <div className="space-y-1">
-                        <GoldGradientText className="text-[40px] font-black leading-none">{stats.globalRate}%</GoldGradientText>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Présence</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[40px] font-black leading-none">{members.length}</p>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Membres</p>
-                      </div>
+                      <div className="space-y-1"><p className="text-[40px] font-black leading-none">{stats.totalSessions}</p><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Sessions</p></div>
+                      <div className="space-y-1"><GoldGradientText className="text-[40px] font-black leading-none">{stats.globalRate}%</GoldGradientText><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Présence</p></div>
+                      <div className="space-y-1"><p className="text-[40px] font-black leading-none">{members.length}</p><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Membres</p></div>
                    </div>
                 </div>
-
-                {/* ACTION SECTION */}
-                <div className="p-6 md:p-12 -mt-10 md:-mt-12 relative z-20 space-y-6">
+                <div className="p-6 md:p-12 -mt-10 md:-mt-12 relative z-20 space-y-6 text-center">
                    {profile?.role === 'surveillant' && (
                      <GoldGradientBtn onClick={() => setView('attendance')} className="w-full p-10 rounded-[2.5rem] flex flex-col items-center justify-center gap-2 border-b-8 border-[#dc9b3f] shadow-2xl">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 size={32} />
-                          <span className="text-2xl font-black uppercase tracking-tight">Faire l'appel</span>
-                        </div>
+                        <div className="flex items-center gap-3"><CheckCircle2 size={32} /><span className="text-2xl font-black uppercase tracking-tight">Faire l'appel</span></div>
                         <p className="text-[9px] text-white/80 font-black uppercase tracking-[0.2em]">{format(new Date(), 'EEEE d MMMM yyyy', { locale: fr })}</p>
                      </GoldGradientBtn>
                    )}
-
                    {profile?.role === 'coordinateur' && (
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <button onClick={() => setView('history')} className="bg-white border-2 border-slate-100 p-8 rounded-[2.5rem] flex items-center justify-between hover:border-[#003362] transition-all group shadow-sm">
-                           <div className="text-left space-y-1">
-                              <p className="font-black text-[#003362] uppercase text-sm tracking-tight">Archives</p>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Historique complet</p>
-                           </div>
-                           <ClipboardList className="text-slate-200 group-hover:text-[#003362] transition-colors" size={32} />
-                        </button>
-                        <button onClick={() => setView('mgmt')} className="bg-white border-2 border-slate-100 p-8 rounded-[2.5rem] flex items-center justify-between hover:border-[#003362] transition-all group shadow-sm">
-                           <div className="text-left space-y-1">
-                              <p className="font-black text-[#003362] uppercase text-sm tracking-tight">Gestion</p>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Membres et accès</p>
-                           </div>
-                           <Settings className="text-slate-200 group-hover:text-[#003362] transition-colors" size={32} />
-                        </button>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                        <button onClick={() => setView('history')} className="bg-white border-2 border-slate-100 p-8 rounded-[2.5rem] flex items-center justify-between hover:border-[#003362] transition-all group shadow-sm"><div className="space-y-1"><p className="font-black text-[#003362] uppercase text-sm">Archives</p><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Historique complet</p></div><ClipboardList className="text-slate-200 group-hover:text-[#003362] transition-colors" size={32} /></button>
+                        <button onClick={() => setView('mgmt')} className="bg-white border-2 border-slate-100 p-8 rounded-[2.5rem] flex items-center justify-between hover:border-[#003362] transition-all group shadow-sm"><div className="space-y-1"><p className="font-black text-[#003362] uppercase text-sm">Gestion</p><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Membres et accès</p></div><Settings className="text-slate-200 group-hover:text-[#003362] transition-colors" size={32} /></button>
                      </div>
                    )}
                 </div>
@@ -429,14 +437,14 @@ function App() {
             {view === 'history' && (
               <div className="p-6 md:p-0 space-y-8">
                 <div className="bg-white border border-slate-200 p-8 rounded-[2rem] space-y-6 shadow-lg">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center text-left">
                     <div className="flex items-center gap-3"><ClipboardList className="text-[#003362]" size={32}/><h2 className="text-2xl font-black uppercase tracking-tight text-[#003362]">Archives</h2></div>
-                    <button onClick={() => generateFilteredPDF()} disabled={filteredHistory.length === 0} className="bg-[#003362] text-white px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">Export PDF Global</button>
+                    <button onClick={() => generateFilteredPDF()} disabled={filteredHistory.length === 0} className="bg-[#003362] text-white px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">PDF Global</button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 ring-[#003362]" />
-                    <input type="text" placeholder="Membre..." value={histSearch} onChange={e => setHistSearch(e.target.value)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 ring-[#003362]" />
-                    <select value={histStatus} onChange={e => setHistStatus(e.target.value)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 ring-[#003362]"><option value="Tous">Tous Statuts</option><option value="Présent">Présents</option><option value="Absent">Absents</option><option value="Excusé">NGANT</option></select>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-2">Mois</label><input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" /></div>
+                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-2">Membre</label><input type="text" placeholder="Rechercher..." value={histSearch} onChange={e => setHistSearch(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" /></div>
+                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-2">Filtre Statut</label><select value={histStatus} onChange={e => setHistStatus(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs"><option value="Tous">Tous</option><option value="Présent">Présents</option><option value="Absent">Absents</option><option value="Excusé">NGANT</option></select></div>
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -445,7 +453,7 @@ function App() {
                        <button onClick={() => setExpandedSession(expandedSession === date ? null : date)} className="w-full p-8 flex justify-between items-center hover:bg-slate-50">
                          <div className="text-left space-y-1">
                            <p className="font-black text-[#003362] uppercase text-sm">{format(parseISO(date), 'EEEE d MMMM yyyy', { locale: fr })}</p>
-                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{history.filter(h => h.date === date).length} membres enregistrés</p>
+                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{history.filter(h => h.date === date).length} enregistrements</p>
                          </div>
                          <div className="flex items-center gap-4">
                             <button onClick={(e) => { e.stopPropagation(); generateFilteredPDF(date); }} className="p-3 text-emerald-600 bg-emerald-50 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><FileDown size={18}/></button>
@@ -453,13 +461,13 @@ function App() {
                          </div>
                        </button>
                        {expandedSession === date && (
-                         <div className="p-8 bg-slate-50 border-t border-slate-100 space-y-3">
-                           <p className="text-[10px] font-black text-[#dc9b3f] uppercase tracking-widest mb-4">Liste de présence du jour</p>
+                         <div className="p-8 bg-slate-50 border-t border-slate-100 space-y-4 text-left">
+                           <p className="text-[10px] font-black text-[#dc9b3f] uppercase tracking-[0.3em]">Détails du jour</p>
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                              {history.filter(h => h.date === date).map(h => (
-                               <div key={h.id} className="bg-white p-4 rounded-xl border border-slate-100 flex justify-between items-center">
-                                 <p className="font-bold text-xs text-slate-700">{h.members?.name}</p>
-                                 <span className={`text-[8px] font-black px-2 py-0.5 rounded border ${
+                               <div key={h.id} className="bg-white p-5 rounded-2xl border border-slate-100 flex justify-between items-center">
+                                 <p className="font-black text-xs text-slate-700 uppercase">{h.members?.name}</p>
+                                 <span className={`text-[8px] font-black px-3 py-1.5 rounded-lg border ${
                                    h.status === 'Présent' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 
                                    h.status === 'Absent' ? 'text-red-700 bg-red-50 border-red-100' : 
                                    'text-[#dc9b3f] bg-amber-50 border-amber-100'
@@ -474,7 +482,7 @@ function App() {
                 </div>
               </div>
             )}
-            
+
             {view === 'mgmt' && (
               <div className="p-6 md:p-0 space-y-10">
                 <div className="flex bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm overflow-hidden max-w-sm">
@@ -482,12 +490,12 @@ function App() {
                    <button onClick={() => setMgmtTab('sessions')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'sessions' ? 'bg-[#003362] text-white shadow-lg' : 'text-slate-400'}`}>Sessions</button>
                    {profile?.role === 'coordinateur' && <button onClick={() => setMgmtTab('users')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'users' ? 'bg-[#003362] text-white shadow-lg' : 'text-slate-400'}`}>Admin</button>}
                 </div>
-                {/* (Membres, Sessions, Admin contents remain identical to previous turn but polished for padding) */}
+                
                 {mgmtTab === 'members' && (
-                  <div className="space-y-6">
+                  <div className="space-y-6 text-left">
                     {profile?.role === 'surveillant' && (
                       <div className="bg-white border border-[#003362]/10 p-10 rounded-[3rem] space-y-6 shadow-xl relative overflow-hidden">
-                        <GoldGradientText className="text-[11px] font-black uppercase tracking-widest">{editingMember ? 'Modification' : 'Nouvelle Inscription'}</GoldGradientText>
+                        <GoldGradientText className="text-[11px] font-black uppercase tracking-widest underline decoration-[#003362] underline-offset-8">{editingMember ? 'Modification' : 'Nouvelle Inscription'}</GoldGradientText>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <input type="text" placeholder="Nom Complet" value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} className="p-5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
                           <input type="tel" placeholder="Téléphone" value={newMember.phone} onChange={e => setNewMember({...newMember, phone: e.target.value})} className="p-5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
@@ -513,17 +521,18 @@ function App() {
                     </div>
                   </div>
                 )}
+
                 {mgmtTab === 'sessions' && (
-                   <div className="grid gap-4">
+                  <div className="grid gap-3 text-left">
                     {sessionsList.map(date => (
-                      <div key={date} className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm flex justify-between items-center transition-all hover:border-[#003362]/20">
+                      <div key={date} className="bg-white p-6 rounded-[2rem] border border-slate-100 flex justify-between items-center shadow-sm">
                          <div className="space-y-1">
                            <p className="font-black text-[#003362] uppercase text-sm">{format(parseISO(date), 'dd/MM/yyyy')}</p>
                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{format(parseISO(date), 'EEEE', { locale: fr })}</p>
                          </div>
                          <div className="flex items-center gap-2">
                            <button onClick={() => { setAttendanceDate(parseISO(date)); setView('attendance'); window.scrollTo({top:0, behavior:'smooth'}); }} className="p-3 bg-slate-50 text-[#003362] rounded-xl hover:bg-[#003362] hover:text-white transition-all shadow-sm"><Pencil size={18}/></button>
-                           {profile?.role === 'coordinateur' && <button onClick={() => deleteSession(date)} className="p-3 bg-red-50 text-red-600 rounded-xl"><Trash2 size={18}/></button>}
+                           {profile?.role === 'coordinateur' && <button onClick={() => deleteSession(date)} className="p-3 bg-red-50 text-red-600 rounded-xl shadow-sm"><Trash2 size={18}/></button>}
                          </div>
                       </div>
                     ))}
@@ -537,7 +546,7 @@ function App() {
 
       <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#003362]/95 backdrop-blur-xl border-t-4 border-[#f0bd53] h-24 flex justify-around items-center z-[120] px-4 shadow-2xl">
         {navItems.map(item => (
-          <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === item.id ? 'text-[#f0bd53] scale-110' : 'text-slate-300 opacity-60'}`}>
+          <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center gap-1 p-2 min-w-[75px] transition-all ${view === item.id ? 'text-[#f0bd53] scale-110' : 'text-slate-300 opacity-60'}`}>
             <item.icon size={26} strokeWidth={view === item.id ? 3 : 2} />
             <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
           </button>
