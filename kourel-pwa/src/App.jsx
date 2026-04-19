@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 import { 
   Home, CheckCircle2, ClipboardList, Settings, LogOut, 
   Plus, Save, Loader2, ChevronLeft, ChevronRight, Search, 
-  Phone, FileDown, Trash2, Users, Calendar, ShieldCheck, UserPlus, TrendingUp, Filter
+  Phone, FileDown, Trash2, Users, Calendar, ShieldCheck, UserPlus, TrendingUp
 } from 'lucide-react';
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -32,26 +32,14 @@ function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
-  
-  const [showAddMember, setShowAddMember] = useState(false);
   const [newMember, setNewMember] = useState({ name: '', phone: '' });
+  
+  const [histSearch, setHistSearch] = useState('');
+  const [histStatus, setHistStatus] = useState('Tous');
 
-  const handleAddMember = async () => {
-    if (!newMember.name.trim()) return;
-    const { error } = await supabase.from('members').insert([{ 
-      name: newMember.name, 
-      phone: newMember.phone, 
-      kourel_id: selectedKourel.id 
-    }]);
-    if (!error) {
-      showToast('Membre ajouté');
-      loadKourelData(selectedKourel.id);
-      setShowAddMember(false);
-      setNewMember({ name: '', phone: '' });
-    } else {
-      showToast(error.message, 'error');
-    }
-  };
+  useEffect(() => { 
+    checkUser(); 
+  }, []);
 
   useEffect(() => {
     if (selectedKourel && view === 'attendance') {
@@ -65,119 +53,184 @@ function App() {
   };
 
   const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) { setUser(session.user); fetchProfile(session.user.id); } 
-    else { setView('login'); setLoading(false); }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
+        await fetchProfile(session.user.id);
+      } else {
+        setView('login');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error("Auth error:", err);
+      setLoading(false);
+    }
   };
 
   const fetchProfile = async (uid) => {
-    const { data, error } = await supabase.from('profiles').select('*, kourels(*)').eq('id', uid).single();
-    if (!error) {
-      setProfile(data);
-      if (data.role === 'surveillant' && data.kourels) {
-        setSelectedKourel(data.kourels);
-        loadKourelData(data.kourels.id);
-        setView('dashboard');
+    try {
+      const { data, error } = await supabase.from('profiles').select('*, kourels(*)').eq('id', uid).single();
+      if (!error && data) {
+        setProfile(data);
+        if (data.role === 'surveillant' && data.kourels) {
+          setSelectedKourel(data.kourels);
+          await loadKourelData(data.kourels.id);
+          setView('dashboard');
+        } else {
+          await fetchGlobalStats();
+          setView('selection');
+        }
       } else {
-        fetchGlobalStats();
-        setView('selection');
+        setView('login');
       }
+    } catch (err) {
+      console.error("Profile error:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const fetchGlobalStats = async () => {
-    const { data: kList } = await supabase.from('kourels').select('*').order('name');
-    setKourels(kList || []);
-    const { data: pList } = await supabase.from('profiles').select('*');
-    setAllProfiles(pList || []);
-    const { data: allAtt } = await supabase.from('attendance').select('status, date, members(kourel_id)');
-    const sMap = {};
-    (kList || []).forEach(k => {
-      const kAtt = allAtt?.filter(a => a.members?.kourel_id === k.id) || [];
-      const pres = kAtt.filter(a => ['Présent'].includes(a.status)).length;
-      sMap[k.id] = { 
-        rate: kAtt.length > 0 ? Math.round((pres / kAtt.length) * 100) : 0,
-        sessions: [...new Set(kAtt.map(a => a.date))].length,
-      };
-    });
-    setKourelsStats(sMap);
+    try {
+      const { data: kList } = await supabase.from('kourels').select('*').order('name');
+      setKourels(kList || []);
+      const { data: pList } = await supabase.from('profiles').select('*');
+      setAllProfiles(pList || []);
+      const { data: allAtt } = await supabase.from('attendance').select('status, date, members(kourel_id)');
+      const sMap = {};
+      (kList || []).forEach(k => {
+        const kAtt = allAtt?.filter(a => a.members?.kourel_id === k.id) || [];
+        const pres = kAtt.filter(a => ['Présent'].includes(a.status)).length;
+        sMap[k.id] = { 
+          rate: kAtt.length > 0 ? Math.round((pres / kAtt.length) * 100) : 0,
+          sessions: [...new Set(kAtt.map(a => a.date))].length,
+        };
+      });
+      setKourelsStats(sMap);
+    } catch (err) { console.error("Stats error:", err); }
   };
 
   const loadKourelData = async (kid) => {
-    const { data: mData } = await supabase.from('members').select('*').eq('kourel_id', kid).eq('active', true).order('name');
-    const { data: amData } = await supabase.from('members').select('*').eq('kourel_id', kid).order('name');
-    setMembers(mData || []);
-    setAllMembers(amData || []);
-    const { data: aData } = await supabase.from('attendance').select('*, members!inner(*)').eq('members.kourel_id', kid);
-    if (aData) {
-      const dates = [...new Set(aData.map(d => d.date))];
-      const pres = aData.filter(d => ['Présent'].includes(d.status)).length;
-      setStats({ totalSessions: dates.length, globalRate: aData.length > 0 ? Math.round((pres / aData.length) * 100) : 0 });
-      setHistory(aData.sort((a,b) => new Date(b.date) - new Date(a.date)));
-    }
+    try {
+      const { data: mData } = await supabase.from('members').select('*').eq('kourel_id', kid).eq('active', true).order('name');
+      const { data: amData } = await supabase.from('members').select('*').eq('kourel_id', kid).order('name');
+      setMembers(mData || []);
+      setAllMembers(amData || []);
+      const { data: aData } = await supabase.from('attendance').select('*, members!inner(*)').eq('members.kourel_id', kid);
+      if (aData) {
+        const dates = [...new Set(aData.map(d => d.date))];
+        const pres = aData.filter(d => ['Présent'].includes(d.status)).length;
+        setStats({ totalSessions: dates.length, globalRate: aData.length > 0 ? Math.round((pres / aData.length) * 100) : 0 });
+        setHistory(aData.sort((a,b) => new Date(b.date) - new Date(a.date)));
+      }
+    } catch (err) { console.error("Load data error:", err); }
   };
 
   const loadExistingAttendance = async () => {
-    const dateStr = format(attendanceDate, 'yyyy-MM-dd');
-    const { data } = await supabase.from('attendance').select('member_id, status').eq('date', dateStr).in('member_id', members.map(m => m.id));
-    
-    const newAtt = {};
-    members.forEach(m => newAtt[m.id] = 'Présent');
-    if (data && data.length > 0) {
-      data.forEach(row => newAtt[row.member_id] = row.status);
-      showToast('Session existante chargée', 'success');
-    }
-    setAttendance(newAtt);
+    try {
+      const dateStr = format(attendanceDate, 'yyyy-MM-dd');
+      const { data } = await supabase.from('attendance').select('member_id, status').eq('date', dateStr).in('member_id', members.map(m => m.id));
+      const newAtt = {};
+      members.forEach(m => newAtt[m.id] = 'Présent');
+      if (data && data.length > 0) {
+        data.forEach(row => newAtt[row.member_id] = row.status);
+      }
+      setAttendance(newAtt);
+    } catch (err) { console.error("Load existing error:", err); }
   };
 
   const saveAttendance = async () => {
     if (profile?.role !== 'surveillant') return;
     setSaving(true);
-    const dateStr = format(attendanceDate, 'yyyy-MM-dd');
-    const mIds = members.map(m => m.id);
-    await supabase.from('attendance').delete().eq('date', dateStr).in('member_id', mIds);
-    const records = Object.entries(attendance).map(([mId, status]) => ({ member_id: mId, status, date: dateStr }));
-    const { error } = await supabase.from('attendance').insert(records);
-    if (!error) { showToast('Appel validé !'); await loadKourelData(selectedKourel.id); setView('dashboard'); }
-    else { showToast('Erreur', 'error'); }
+    try {
+      const dateStr = format(attendanceDate, 'yyyy-MM-dd');
+      const mIds = members.map(m => m.id);
+      await supabase.from('attendance').delete().eq('date', dateStr).in('member_id', mIds);
+      const records = Object.entries(attendance).map(([mId, status]) => ({ member_id: mId, status, date: dateStr }));
+      const { error } = await supabase.from('attendance').insert(records);
+      if (!error) { 
+        showToast('Appel validé !'); 
+        await loadKourelData(selectedKourel.id); 
+        setView('dashboard'); 
+      } else { showToast('Erreur lors de l\'enregistrement', 'error'); }
+    } catch (err) { showToast('Erreur système', 'error'); }
     setSaving(false);
   };
 
   const handleUpdateProfile = async (pId, newRole, newKourelId) => {
     setSaving(true);
-    await supabase.from('profiles').update({ role: newRole, kourel_id: newKourelId }).eq('id', pId);
-    await fetchGlobalStats();
-    showToast('Profil mis à jour');
+    try {
+      await supabase.from('profiles').update({ role: newRole, kourel_id: newKourelId }).eq('id', pId);
+      await fetchGlobalStats();
+      showToast('Profil mis à jour');
+    } catch (err) { showToast('Erreur mise à jour', 'error'); }
     setSaving(false);
+  };
+
+  const handleAddMember = async () => {
+    if (!newMember.name.trim()) return;
+    try {
+      const { error } = await supabase.from('members').insert([{ name: newMember.name, phone: newMember.phone, kourel_id: selectedKourel.id }]);
+      if (!error) {
+        showToast('Membre ajouté');
+        loadKourelData(selectedKourel.id);
+        setNewMember({ name: '', phone: '' });
+      } else { showToast('Erreur ajout', 'error'); }
+    } catch (err) { showToast('Erreur système', 'error'); }
   };
 
   const deleteSession = async (date) => {
     if (!window.confirm('Supprimer cette session ?')) return;
-    const mIds = allMembers.map(m => m.id);
-    await supabase.from('attendance').delete().eq('date', date).in('member_id', mIds);
-    loadKourelData(selectedKourel.id);
+    try {
+      const mIds = allMembers.map(m => m.id);
+      await supabase.from('attendance').delete().eq('date', date).in('member_id', mIds);
+      await loadKourelData(selectedKourel.id);
+    } catch (err) { showToast('Erreur suppression', 'error'); }
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error) await fetchProfile(data.user.id);
-    else { showToast('Erreur connexion', 'error'); setLoading(false); }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (!error) await fetchProfile(data.user.id);
+      else { showToast('Identifiants incorrects', 'error'); setLoading(false); }
+    } catch (err) { 
+      showToast('Erreur de connexion', 'error'); 
+      setLoading(false); 
+    }
   };
 
-  const handleLogout = () => { supabase.auth.signOut().then(() => window.location.reload()); };
+  const handleLogout = () => { 
+    supabase.auth.signOut().then(() => window.location.reload()); 
+  };
 
   const generateMonthlyPDF = () => {
-    const doc = new jsPDF();
-    const start = startOfMonth(parseISO(selectedMonth + "-01"));
-    const end = endOfMonth(start);
-    const monthlyData = history.filter(h => isWithinInterval(parseISO(h.date), { start, end }));
-    doc.text(`Rapport Mensuel : ${format(start, 'MMMM yyyy', { locale: fr })}`, 14, 20);
-    autoTable(doc, { startY: 30, head: [['Nom', 'Statut', 'Date']], body: monthlyData.map(h => [h.members?.name, h.status, h.date]), headStyles: { fillColor: [30, 41, 59] } });
-    doc.save(`Rapport_${selectedKourel.name}_${selectedMonth}.pdf`);
+    try {
+      const doc = new jsPDF();
+      const start = startOfMonth(parseISO(selectedMonth + "-01"));
+      const end = endOfMonth(start);
+      const monthlyData = history.filter(h => isWithinInterval(parseISO(h.date), { start, end }));
+      doc.text(`Rapport Mensuel : ${format(start, 'MMMM yyyy', { locale: fr })}`, 14, 20);
+      autoTable(doc, { 
+        startY: 30, 
+        head: [['Nom', 'Statut', 'Date']], 
+        body: monthlyData.map(h => [h.members?.name, h.status, h.date]),
+        headStyles: { fillColor: [30, 41, 59] } 
+      });
+      doc.save(`Rapport_${selectedKourel.name}_${selectedMonth}.pdf`);
+    } catch (err) { showToast('Erreur PDF', 'error'); }
   };
+
+  if (loading) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-white space-y-4">
+        <Loader2 className="animate-spin text-indigo-600" size={48} />
+        <p className="font-black text-slate-400 uppercase tracking-widest text-xs animate-pulse">Initialisation Saytu...</p>
+      </div>
+    );
+  }
 
   const navItems = [
     { id: 'dashboard', label: 'Accueil', icon: Home, roles: ['surveillant', 'coordinateur'] },
@@ -186,29 +239,29 @@ function App() {
     { id: 'mgmt', label: 'Gestion', icon: Settings, roles: ['surveillant', 'coordinateur'] },
   ].filter(item => item.roles.includes(profile?.role));
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-white font-bold text-indigo-600">Saytu Kurel...</div>;
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
-      <header className="sticky top-0 z-50 bg-slate-900 text-white shadow-lg">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="text-indigo-400" size={24} />
-            <span className="font-bold tracking-tight uppercase">Saytu</span>
+      {user && (
+        <header className="sticky top-0 z-50 bg-slate-900 text-white shadow-lg">
+          <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="text-indigo-400" size={24} />
+              <span className="font-bold tracking-tight uppercase">Saytu</span>
+            </div>
+            <nav className="hidden md:flex gap-6">
+              {navItems.map(item => (
+                <button key={item.id} onClick={() => setView(item.id)} className={`flex items-center gap-2 text-xs font-bold uppercase ${view === item.id ? 'text-indigo-400' : 'text-slate-400'}`}>
+                  <item.icon size={16} /> {item.label}
+                </button>
+              ))}
+            </nav>
+            <button onClick={handleLogout} className="p-1 hover:text-red-400"><LogOut size={20}/></button>
           </div>
-          <nav className="hidden md:flex gap-6">
-            {navItems.map(item => (
-              <button key={item.id} onClick={() => setView(item.id)} className={`flex items-center gap-2 text-xs font-bold uppercase ${view === item.id ? 'text-indigo-400' : 'text-slate-400'}`}>
-                <item.icon size={16} /> {item.label}
-              </button>
-            ))}
-          </nav>
-          <button onClick={handleLogout} className="p-1 hover:text-red-400"><LogOut size={20}/></button>
-        </div>
-      </header>
+        </header>
+      )}
 
       {toast && (
-        <div className={`fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-2xl text-white font-bold z-[100] ${toast.type === 'success' ? 'bg-slate-900' : 'bg-red-500'}`}>
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-2xl text-white font-bold z-[100] animate-in slide-in-from-top-4 ${toast.type === 'success' ? 'bg-slate-900' : 'bg-red-500'}`}>
           {toast.msg}
         </div>
       )}
@@ -220,7 +273,7 @@ function App() {
               <h1 className="text-2xl font-black text-center uppercase tracking-widest">Connexion</h1>
               <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 ring-indigo-500 transition-all" />
               <input type="password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 ring-indigo-500 transition-all" />
-              <button className="w-full bg-slate-900 text-white p-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg">Entrer</button>
+              <button className="w-full bg-slate-900 text-white p-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all">Entrer</button>
             </form>
           </div>
         )}
@@ -255,7 +308,7 @@ function App() {
                   ))}
                 </div>
                 {profile?.role === 'surveillant' && (
-                  <button onClick={() => setView('attendance')} className="w-full bg-slate-900 text-white p-8 rounded-[2rem] shadow-xl flex flex-col items-center justify-center gap-2">
+                  <button onClick={() => setView('attendance')} className="w-full bg-slate-900 text-white p-8 rounded-[2rem] shadow-xl flex flex-col items-center justify-center gap-2 active:scale-[0.98] transition-all">
                     <span className="text-2xl font-black uppercase tracking-tighter">Faire l'appel</span>
                     <span className="text-xs text-slate-400 font-bold uppercase tracking-widest opacity-80">{format(new Date(), 'EEEE d MMMM yyyy', { locale: fr })}</span>
                   </button>
@@ -280,20 +333,22 @@ function App() {
                     <button onClick={() => setAttendanceDate(new Date(attendanceDate.setDate(attendanceDate.getDate()+1)))} className="p-3 bg-slate-50 rounded-2xl"><ChevronRight size={24}/></button>
                   </div>
                 </div>
-                <div className="relative"><Search className="absolute left-4 top-4 text-slate-300" size={20} /><input type="text" placeholder="Rechercher..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full p-4 pl-12 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 ring-indigo-500" /></div>
+                <div className="relative"><Search className="absolute left-4 top-4 text-slate-300" size={20} /><input type="text" placeholder="Rechercher..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full p-4 pl-12 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-medium" /></div>
                 <div className="space-y-3">
                   {members.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase())).map(m => (
-                    <div key={m.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 transition-all">
+                    <div key={m.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm transition-all">
                       <p className="font-bold text-slate-800">{m.name}</p>
                       <div className="flex gap-1 w-full sm:w-auto">
                         {['Absent', 'Excusé', 'Présent'].map((v) => (
-                          <button key={v} onClick={() => setAttendance({...attendance, [m.id]: v})} className={`flex-1 sm:flex-none px-4 py-3 rounded-xl font-black text-[9px] uppercase transition-all ${attendance[m.id] === v ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-300'}`}>{v === 'Excusé' ? 'NGANT' : v}</button>
+                          <button key={v} onClick={() => setAttendance({...attendance, [m.id]: v})} className={`flex-1 sm:flex-none px-4 py-3 rounded-xl font-black text-[9px] uppercase transition-all ${
+                            attendance[m.id] === v ? (v === 'Absent' ? 'bg-red-600 text-white shadow-lg' : v === 'Excusé' ? 'bg-amber-600 text-white shadow-lg' : 'bg-indigo-600 text-white shadow-lg') : 'bg-slate-50 text-slate-300'
+                          }`}>{v === 'Excusé' ? 'NGANT' : v}</button>
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
-                <button onClick={saveAttendance} disabled={saving} className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-xs bg-slate-900 text-white p-5 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] z-40">{saving ? 'VALIDATION...' : 'VALIDER L\'APPEL'}</button>
+                <button onClick={saveAttendance} disabled={saving} className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-xs bg-slate-900 text-white p-5 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl z-40">{saving ? 'VALIDATION...' : 'VALIDER L\'APPEL'}</button>
               </div>
             )}
 
@@ -343,38 +398,20 @@ function App() {
                       <div className="bg-white border border-slate-100 p-6 rounded-3xl space-y-4 shadow-sm">
                         <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Nouveau Membre</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <input 
-                            type="text" 
-                            placeholder="Prénom & Nom" 
-                            value={newMember.name} 
-                            onChange={e => setNewMember({...newMember, name: e.target.value})} 
-                            className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" 
-                          />
-                          <input 
-                            type="tel" 
-                            placeholder="Téléphone" 
-                            value={newMember.phone} 
-                            onChange={e => setNewMember({...newMember, phone: e.target.value})} 
-                            className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" 
-                          />
+                          <input type="text" placeholder="Prénom & Nom" value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" />
+                          <input type="tel" placeholder="Téléphone" value={newMember.phone} onChange={e => setNewMember({...newMember, phone: e.target.value})} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" />
                         </div>
-                        <button onClick={handleAddMember} className="w-full bg-indigo-600 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
-                          <Plus size={16}/> Ajouter au Kourel
-                        </button>
+                        <button onClick={handleAddMember} className="w-full bg-indigo-600 text-white p-4 rounded-xl font-black uppercase text-[10px] flex items-center justify-center gap-2"><Plus size={16}/> Ajouter</button>
                       </div>
                     )}
-                    
                     <div className="grid gap-3 pt-4">
                       {allMembers.map(m => (
-                        <div key={m.id} className="bg-white p-5 border border-slate-100 rounded-2xl flex justify-between items-center shadow-sm transition-all">
-                          <div>
-                            <p className="font-bold text-sm text-slate-800 uppercase">{m.name}</p>
-                            <p className="text-[10px] text-slate-400 font-bold">{m.phone || 'Pas de numéro'}</p>
-                          </div>
+                        <div key={m.id} className="bg-white p-5 border border-slate-100 rounded-2xl flex justify-between items-center shadow-sm">
+                          <div><p className="font-bold text-sm text-slate-800 uppercase">{m.name}</p><p className="text-[10px] text-slate-400 font-bold">{m.phone || 'Pas de numéro'}</p></div>
                           {profile?.role === 'surveillant' && (
                             <div className="flex gap-2">
-                               {m.phone && <a href={`tel:${m.phone}`} className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><Phone size={16}/></a>}
-                               <button onClick={async () => { if(window.confirm('Changer le statut ?')) { await supabase.from('members').update({active: !m.active}).eq('id', m.id); loadKourelData(selectedKourel.id); }}} className={`p-2.5 rounded-xl border ${m.active ? 'text-amber-600 border-amber-100 bg-amber-50' : 'text-emerald-600 border-emerald-100 bg-emerald-50'}`}><Users size={16}/></button>
+                               {m.phone && <a href={`tel:${m.phone}`} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Phone size={16}/></a>}
+                               <button onClick={async () => { if(window.confirm('Changer le statut ?')) { await supabase.from('members').update({active: !m.active}).eq('id', m.id); loadKourelData(selectedKourel.id); }}} className={`p-2.5 rounded-xl border ${m.active ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`}><Users size={16}/></button>
                             </div>
                           )}
                         </div>
