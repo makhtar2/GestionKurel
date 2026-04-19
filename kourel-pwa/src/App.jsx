@@ -8,7 +8,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -130,15 +130,37 @@ function App() {
   };
 
   const generatePDF = (date) => {
-    const doc = new jsPDF();
-    const data = date ? history.filter(h => h.date === date) : history;
-    doc.text(`Rapport de Presence - ${selectedKourel.name}`, 14, 20);
-    doc.autoTable({ 
-      startY: 30, 
-      head: [['Nom', 'Statut', 'Date']], 
-      body: data.map(h => [h.members?.name, h.status, h.date]) 
-    });
-    doc.save(`Rapport_${selectedKourel.name}_${date || 'global'}.pdf`);
+    try {
+      const doc = new jsPDF();
+      const data = date ? history.filter(h => h.date === date) : history;
+      
+      doc.setFontSize(18);
+      doc.text(`Rapport de Presence - ${selectedKourel.name}`, 14, 20);
+      
+      doc.setFontSize(10);
+      doc.text(`Genere le : ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 28);
+      if (date) doc.text(`Seance du : ${format(parseISO(date), 'dd MMMM yyyy', { locale: fr })}`, 14, 34);
+
+      const tableData = data.map(h => [
+        h.members?.name || 'Inconnu',
+        h.status,
+        h.date,
+        h.notes || ''
+      ]);
+
+      autoTable(doc, { 
+        startY: date ? 40 : 35, 
+        head: [['Nom', 'Statut', 'Date', 'Notes']], 
+        body: tableData,
+        headStyles: { fillColor: [79, 70, 229] }, // Couleur Indigo-600
+      });
+
+      doc.save(`Rapport_${selectedKourel.name}_${date || 'global'}.pdf`);
+      showToast('PDF Téléchargé');
+    } catch (err) {
+      console.error(err);
+      showToast('Erreur PDF', 'error');
+    }
   };
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-indigo-600" size={40} /></div>;
