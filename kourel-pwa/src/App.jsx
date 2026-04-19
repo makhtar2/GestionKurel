@@ -33,10 +33,25 @@ function App() {
   const [password, setPassword] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   
-  const [histSearch, setHistSearch] = useState('');
-  const [histStatus, setHistStatus] = useState('Tous');
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [newMember, setNewMember] = useState({ name: '', phone: '' });
 
-  useEffect(() => { checkUser(); }, []);
+  const handleAddMember = async () => {
+    if (!newMember.name.trim()) return;
+    const { error } = await supabase.from('members').insert([{ 
+      name: newMember.name, 
+      phone: newMember.phone, 
+      kourel_id: selectedKourel.id 
+    }]);
+    if (!error) {
+      showToast('Membre ajouté');
+      loadKourelData(selectedKourel.id);
+      setShowAddMember(false);
+      setNewMember({ name: '', phone: '' });
+    } else {
+      showToast(error.message, 'error');
+    }
+  };
 
   useEffect(() => {
     if (selectedKourel && view === 'attendance') {
@@ -323,14 +338,48 @@ function App() {
                    {profile?.role === 'coordinateur' && <button onClick={() => setMgmtTab('users')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'users' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}>Admin</button>}
                 </div>
                 {mgmtTab === 'members' && (
-                  <div className="grid gap-3">
-                    {profile?.role === 'surveillant' && <button onClick={() => { const n = window.prompt("Nom ?"); if(n) supabase.from('members').insert([{name:n, kourel_id:selectedKourel.id}]).then(()=>loadKourelData(selectedKourel.id)); }} className="p-8 border-2 border-dashed border-slate-200 rounded-3xl font-black text-slate-400 uppercase text-[10px] flex items-center justify-center gap-3"><UserPlus size={20} /> Ajouter Membre</button>}
-                    {allMembers.map(m => (
-                      <div key={m.id} className="bg-white p-5 border border-slate-100 rounded-2xl flex justify-between items-center shadow-sm">
-                        <p className="font-bold text-sm text-slate-800">{m.name}</p>
-                        {profile?.role === 'surveillant' && <button onClick={async () => { await supabase.from('members').update({active: !m.active}).eq('id', m.id); loadKourelData(selectedKourel.id); }} className={`p-2.5 rounded-xl border ${m.active ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`}><Users size={16}/></button>}
+                  <div className="space-y-4">
+                    {profile?.role === 'surveillant' && (
+                      <div className="bg-white border border-slate-100 p-6 rounded-3xl space-y-4 shadow-sm">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Nouveau Membre</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <input 
+                            type="text" 
+                            placeholder="Prénom & Nom" 
+                            value={newMember.name} 
+                            onChange={e => setNewMember({...newMember, name: e.target.value})} 
+                            className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" 
+                          />
+                          <input 
+                            type="tel" 
+                            placeholder="Téléphone" 
+                            value={newMember.phone} 
+                            onChange={e => setNewMember({...newMember, phone: e.target.value})} 
+                            className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" 
+                          />
+                        </div>
+                        <button onClick={handleAddMember} className="w-full bg-indigo-600 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
+                          <Plus size={16}/> Ajouter au Kourel
+                        </button>
                       </div>
-                    ))}
+                    )}
+                    
+                    <div className="grid gap-3 pt-4">
+                      {allMembers.map(m => (
+                        <div key={m.id} className="bg-white p-5 border border-slate-100 rounded-2xl flex justify-between items-center shadow-sm transition-all">
+                          <div>
+                            <p className="font-bold text-sm text-slate-800 uppercase">{m.name}</p>
+                            <p className="text-[10px] text-slate-400 font-bold">{m.phone || 'Pas de numéro'}</p>
+                          </div>
+                          {profile?.role === 'surveillant' && (
+                            <div className="flex gap-2">
+                               {m.phone && <a href={`tel:${m.phone}`} className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><Phone size={16}/></a>}
+                               <button onClick={async () => { if(window.confirm('Changer le statut ?')) { await supabase.from('members').update({active: !m.active}).eq('id', m.id); loadKourelData(selectedKourel.id); }}} className={`p-2.5 rounded-xl border ${m.active ? 'text-amber-600 border-amber-100 bg-amber-50' : 'text-emerald-600 border-emerald-100 bg-emerald-50'}`}><Users size={16}/></button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {mgmtTab === 'sessions' && (
