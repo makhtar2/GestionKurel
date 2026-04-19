@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from './supabaseClient';
 import { 
   Home, CheckCircle2, ClipboardList, Settings, LogOut, 
   Plus, Save, Loader2, ChevronLeft, ChevronRight, Search, 
-  Phone, FileDown, Trash2, Users, Calendar, ShieldCheck, Pencil, X, TrendingUp
+  Phone, FileDown, Trash2, Users, Calendar, ShieldCheck, Pencil, X, TrendingUp, Info
 } from 'lucide-react';
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -42,6 +42,16 @@ function App() {
   useEffect(() => {
     if (selectedKourel && view === 'attendance') loadExistingAttendance();
   }, [attendanceDate, selectedKourel, view]);
+
+  // Filtrage intelligent pour l'affichage et l'export
+  const filteredHistory = useMemo(() => {
+    return history.filter(h => {
+      const matchMonth = h.date.startsWith(selectedMonth);
+      const matchSearch = histSearch === '' || h.members?.name.toLowerCase().includes(histSearch.toLowerCase());
+      const matchStatus = histStatus === 'Tous' || h.status === histStatus;
+      return matchMonth && matchSearch && matchStatus;
+    });
+  }, [history, selectedMonth, histSearch, histStatus]);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -172,14 +182,48 @@ function App() {
     else { showToast('Accès refusé', 'error'); setLoading(false); }
   };
 
-  const generateMonthlyPDF = () => {
+  const generateFilteredPDF = () => {
     const doc = new jsPDF();
-    const start = startOfMonth(parseISO(selectedMonth + "-01"));
-    const end = endOfMonth(start);
-    const monthlyData = history.filter(h => isWithinInterval(parseISO(h.date), { start, end }));
-    doc.text(`Rapport ${selectedKourel.name} - ${format(start, 'MMMM yyyy', { locale: fr })}`, 14, 20);
-    autoTable(doc, { startY: 30, head: [['Nom', 'Statut', 'Date']], body: monthlyData.map(h => [h.members?.name, h.status, h.date]), headStyles: { fillColor: [30, 41, 59] } });
-    doc.save('rapport.pdf');
+    const monthLabel = format(parseISO(selectedMonth + "-01"), 'MMMM yyyy', { locale: fr });
+    
+    // Titre pro
+    doc.setFontSize(22);
+    doc.setTextColor(30, 41, 59);
+    doc.text("SAYTU KUREL", 14, 20);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Rapport de présence - ${selectedKourel.name}`, 14, 28);
+    doc.text(`Période : ${monthLabel}`, 14, 34);
+
+    // Filtres appliqués
+    let yPos = 45;
+    doc.setFontSize(10);
+    doc.setTextColor(148, 163, 184);
+    if (histSearch) { doc.text(`Filtre Membre : ${histSearch}`, 14, yPos); yPos += 6; }
+    if (histStatus !== 'Tous') { doc.text(`Filtre Statut : ${histStatus}`, 14, yPos); yPos += 6; }
+
+    // Stats rapides
+    const presents = filteredHistory.filter(h => h.status === 'Présent').length;
+    const rate = filteredHistory.length > 0 ? Math.round((presents / filteredHistory.length) * 100) : 0;
+    
+    doc.setFillColor(248, 250, 252);
+    doc.rect(14, yPos + 2, 182, 15, 'F');
+    doc.setTextColor(30, 41, 59);
+    doc.setFont(undefined, 'bold');
+    doc.text(`Total Pointages : ${filteredHistory.length}   |   Présents : ${presents}   |   Taux : ${rate}%`, 20, yPos + 12);
+
+    autoTable(doc, { 
+      startY: yPos + 25, 
+      head: [['NOM ET PRENOM', 'STATUT', 'DATE DE SEANCE']], 
+      body: filteredHistory.map(h => [h.members?.name.toUpperCase(), h.status.toUpperCase(), format(parseISO(h.date), 'dd/MM/yyyy')]),
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 10, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+      margin: { top: 30 }
+    });
+
+    doc.save(`Rapport_${selectedKourel.name}_${selectedMonth}.pdf`);
+    showToast("PDF Généré");
   };
 
   if (loading) return <div className="h-screen flex flex-col items-center justify-center bg-white space-y-4"><Loader2 className="animate-spin text-indigo-600" size={40} /><p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Saytu...</p></div>;
@@ -194,7 +238,6 @@ function App() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans flex flex-col antialiased">
       
-      {/* HEADER FIXE */}
       {user && (
         <header className="sticky top-0 z-[80] bg-slate-900 text-white shadow-md">
           <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
@@ -214,7 +257,6 @@ function App() {
         </header>
       )}
 
-      {/* TOAST */}
       {toast && (
         <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl shadow-2xl text-white font-bold z-[100] animate-in slide-in-from-top-4 ${toast.type === 'success' ? 'bg-slate-900' : 'bg-red-500'}`}>
           {toast.msg}
@@ -285,14 +327,14 @@ function App() {
             {view === 'attendance' && (
               <div className="space-y-6 pb-20">
                 <div className="bg-white border border-slate-200 p-8 rounded-[2rem] flex flex-col items-center gap-4 shadow-sm">
-                  <p className="text-xs font-black text-indigo-600 uppercase tracking-[0.3em]">{format(attendanceDate, 'EEEE d MMMM yyyy', { locale: fr })}</p>
+                  <p className="text-xs font-black text-indigo-600 uppercase tracking-[0.3em] text-center">{format(attendanceDate, 'EEEE d MMMM yyyy', { locale: fr })}</p>
                   <div className="flex items-center gap-8">
-                    <button onClick={() => setAttendanceDate(new Date(attendanceDate.setDate(attendanceDate.getDate()-1)))} className="p-3 bg-slate-50 rounded-2xl"><ChevronLeft size={24}/></button>
+                    <button onClick={() => setAttendanceDate(new Date(attendanceDate.setDate(attendanceDate.getDate()-1)))} className="p-3 bg-slate-50 rounded-2xl hover:bg-indigo-50"><ChevronLeft size={24}/></button>
                     <div className="relative"><Calendar className="text-slate-300" size={32}/><input type="date" value={format(attendanceDate, 'yyyy-MM-dd')} onChange={e => setAttendanceDate(parseISO(e.target.value))} className="absolute inset-0 opacity-0 cursor-pointer" /></div>
-                    <button onClick={() => setAttendanceDate(new Date(attendanceDate.setDate(attendanceDate.getDate()+1)))} className="p-3 bg-slate-50 rounded-2xl"><ChevronRight size={24}/></button>
+                    <button onClick={() => setAttendanceDate(new Date(attendanceDate.setDate(attendanceDate.getDate()+1)))} className="p-3 bg-slate-50 rounded-2xl hover:bg-indigo-50"><ChevronRight size={24}/></button>
                   </div>
                 </div>
-                <div className="relative"><Search className="absolute left-4 top-4 text-slate-300" size={20} /><input type="text" placeholder="Rechercher..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full p-4 pl-12 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-medium shadow-sm" /></div>
+                <div className="relative"><Search className="absolute left-4 top-4 text-slate-300" size={20} /><input type="text" placeholder="Trouver un membre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full p-4 pl-12 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-medium shadow-sm" /></div>
                 <div className="space-y-3">
                   {members.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase())).map(m => (
                     <div key={m.id} className="bg-white p-5 rounded-[1.5rem] border border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm">
@@ -314,27 +356,54 @@ function App() {
             {view === 'history' && (
               <div className="space-y-6">
                 <div className="bg-white border border-slate-200 p-8 rounded-[2rem] space-y-6 shadow-sm">
-                  <div className="flex justify-between items-center"><h2 className="text-xl font-black uppercase tracking-tight">Filtres</h2><button onClick={generateMonthlyPDF} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest"><FileDown size={14}/></button></div>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2"><ClipboardList className="text-indigo-600"/><h2 className="text-xl font-black uppercase tracking-tight">Rapports & Activité</h2></div>
+                    <button onClick={generateFilteredPDF} disabled={filteredHistory.length === 0} className="bg-indigo-600 text-white px-5 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-100 disabled:opacity-30"><FileDown size={16}/> Export PDF</button>
+                  </div>
+                  
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none" />
-                    <input type="text" placeholder="Membre..." value={histSearch} onChange={e => setHistSearch(e.target.value)} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none" />
-                    <select value={histStatus} onChange={e => setHistStatus(e.target.value)} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none">
+                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-2">Mois</label><input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-xs outline-none focus:ring-2 ring-indigo-500" /></div>
+                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-2">Membre</label><input type="text" placeholder="Rechercher..." value={histSearch} onChange={e => setHistSearch(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-xs outline-none focus:ring-2 ring-indigo-500" /></div>
+                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-2">Statut</label><select value={histStatus} onChange={e => setHistStatus(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-xs outline-none focus:ring-2 ring-indigo-500">
                       <option value="Tous">Tous les statuts</option><option value="Présent">Présents</option><option value="Absent">Absents</option><option value="Excusé">NGANT</option>
-                    </select>
+                    </select></div>
                   </div>
                 </div>
-                <div className="space-y-4">
-                  {[...new Set(history.map(h => h.date))].filter(date => date.startsWith(selectedMonth)).sort((a,b) => new Date(b)-new Date(a)).map(date => {
-                    const filtered = history.filter(h => h.date === date && (histSearch === '' || h.members?.name.toLowerCase().includes(histSearch.toLowerCase())) && (histStatus === 'Tous' || h.status === histStatus));
-                    if (filtered.length === 0) return null;
+
+                <div className="space-y-8">
+                  {[...new Set(filteredHistory.map(h => h.date))].sort((a,b) => new Date(b)-new Date(a)).map(date => {
+                    const daily = filteredHistory.filter(h => h.date === date);
                     return (
-                      <div key={date} className="bg-white border border-slate-100 p-8 rounded-[2rem] shadow-sm space-y-4">
-                        <div className="flex justify-between items-center border-b pb-3"><p className="font-black text-xs uppercase text-slate-400 tracking-widest">{format(parseISO(date), 'EEEE d MMMM yyyy', { locale: fr })}</p>{profile?.role === 'coordinateur' && <button onClick={() => deleteSession(date)} className="text-red-300 hover:text-red-600"><Trash2 size={16}/></button>}</div>
-                        <div className="flex flex-wrap gap-2">{filtered.map(h => (<div key={h.id} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase border ${h.status === 'Présent' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : h.status === 'Absent' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>{h.members?.name} : {h.status === 'Excusé' ? 'NGANT' : h.status}</div>))}</div>
+                      <div key={date} className="space-y-4">
+                        <div className="flex items-center gap-4 px-2">
+                           <div className="h-px flex-1 bg-slate-200"></div>
+                           <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">{format(parseISO(date), 'EEEE d MMMM yyyy', { locale: fr })}</p>
+                           <div className="h-px flex-1 bg-slate-200"></div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                          {daily.map(h => (
+                            <div key={h.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-2 h-2 rounded-full ${h.status === 'Présent' ? 'bg-emerald-500' : h.status === 'Absent' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
+                                <p className="font-bold text-sm text-slate-700">{h.members?.name}</p>
+                              </div>
+                              <span className={`text-[8px] font-black px-2.5 py-1 rounded-full border ${
+                                h.status === 'Présent' ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 
+                                h.status === 'Absent' ? 'text-red-600 bg-red-50 border-red-100' : 
+                                'text-amber-600 bg-amber-50 border-amber-100'
+                              }`}>{h.status === 'Excusé' ? 'NGANT' : h.status.toUpperCase()}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   })}
-                  {history.length === 0 && <div className="text-center py-10 opacity-40 font-bold uppercase text-xs">Aucune donnée</div>}
+                  {filteredHistory.length === 0 && (
+                    <div className="bg-white p-12 rounded-[2rem] border border-dashed border-slate-200 text-center space-y-3">
+                      <Info className="mx-auto text-slate-300" size={32}/>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Aucune donnée pour ces filtres</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -400,13 +469,11 @@ function App() {
         )}
       </main>
 
-      {user && view !== 'selection' && (
-        <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-slate-100 h-20 flex justify-around items-center z-[80] px-2 shadow-2xl">
-          {navItems.map(item => (
-            <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center gap-1 p-2 min-w-[70px] transition-all ${view === item.id ? 'text-indigo-600' : 'text-slate-300'}`}><item.icon size={22} strokeWidth={2.5} /><span className="text-[9px] font-black uppercase tracking-tighter">{item.label}</span></button>
-          ))}
-        </nav>
-      )}
+      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-slate-100 h-20 flex justify-around items-center z-[80] px-2 shadow-2xl">
+        {navItems.map(item => (
+          <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center gap-1 p-2 min-w-[70px] transition-all ${view === item.id ? 'text-indigo-600' : 'text-slate-300'}`}><item.icon size={22} strokeWidth={2.5} /><span className="text-[9px] font-black uppercase tracking-tighter">{item.label}</span></button>
+        ))}
+      </nav>
     </div>
   );
 }
