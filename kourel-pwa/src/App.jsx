@@ -169,10 +169,10 @@ function App() {
   };
 
   const handleDeleteMember = async (id) => {
-    confirmAction("Suppression", "Retirer définitivement ce membre ?", async () => {
+    confirmAction("Suppression", "Retirer ce membre ?", async () => {
       await supabase.from('members').delete().eq('id', id);
       await loadKourelData(selectedKourel.id);
-      showToast('Membre retiré');
+      showToast('Retiré');
     }, 'danger');
   };
 
@@ -180,7 +180,7 @@ function App() {
     confirmAction("Suppression", `Effacer la séance du ${date} ?`, async () => {
       await supabase.from('attendance').delete().eq('date', date).in('member_id', allMembers.map(m => m.id));
       await loadKourelData(selectedKourel.id);
-      showToast('Session effacée');
+      showToast('Effacée');
     }, 'danger');
   };
 
@@ -196,91 +196,27 @@ function App() {
     const doc = new jsPDF();
     const data = date ? history.filter(h => h.date === date) : filteredHistory;
     const periodLabel = date ? format(parseISO(date), 'dd MMMM yyyy', { locale: fr }) : format(parseISO(selectedMonth + "-01"), 'MMMM yyyy', { locale: fr });
-
-    // HEADER INSTITUTIONNEL
-    doc.setFillColor(0, 51, 98); // Bleu Nuit
-    doc.rect(0, 0, 210, 45, 'F');
-    
-    doc.setFontSize(24);
-    doc.setTextColor(255, 255, 255);
-    doc.text("SAYTU NUXBA", 14, 25);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(220, 155, 63); // Or
-    doc.text("Dahira Nuxbatul Haqabatil Xadiimiyyah", 14, 32);
-    
-    doc.setFontSize(14);
-    doc.setTextColor(255, 255, 255);
-    doc.text(`Rapport : ${selectedKourel.name}`, 14, 40);
-
-    // BLOC DE STATS
-    const total = data.length;
-    const presents = data.filter(h => h.status === 'Présent').length;
-    const absents = data.filter(h => h.status === 'Absent').length;
-    const excusés = data.filter(h => h.status === 'Excusé').length;
-    const rate = total > 0 ? Math.round((presents / total) * 100) : 0;
-
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(14, 50, 182, 20, 3, 3, 'F');
-    doc.setFontSize(9);
-    doc.setTextColor(71, 85, 105);
-    doc.text(`Total : ${total} | Présents : ${presents} | Absents : ${absents} | Ngant : ${excusés}`, 20, 62);
-    doc.setTextColor(5, 150, 105);
-    doc.setFont(undefined, 'bold');
-    doc.text(`TAUX DE PRÉSENCE : ${rate}%`, 140, 62);
-
-    // TABLEAU COLORÉ
-    autoTable(doc, { 
-      startY: 75, 
-      head: [['NOM ET PRENOM', 'STATUT', 'DATE']], 
-      body: data.map(h => [h.members?.name.toUpperCase(), h.status.toUpperCase(), h.date]),
-      headStyles: { fillColor: [0, 51, 98], fontSize: 10, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [249, 250, 251] },
-      didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index === 1) {
-          const status = data.cell.raw;
-          if (status === 'PRÉSENT') data.cell.styles.textColor = [5, 150, 105]; // Vert
-          if (status === 'ABSENT') data.cell.styles.textColor = [220, 38, 38]; // Rouge
-          if (status === 'EXCUSÉ') data.cell.styles.textColor = [220, 155, 63]; // Or/Ngant
-        }
-      }
-    });
-
-    doc.save(`Rapport_${selectedKourel.name}_${periodLabel}.pdf`);
-    showToast("Rapport généré");
+    doc.setFontSize(22); doc.setTextColor(0, 51, 98); doc.text("SAYTU NUXBA", 14, 20);
+    autoTable(doc, { startY: 40, head: [['NOM ET PRENOM', 'STATUT', 'DATE']], body: data.map(h => [h.members?.name.toUpperCase(), h.status.toUpperCase(), h.date]), headStyles: { fillColor: [0, 51, 98] } });
+    doc.save('rapport.pdf');
   };
 
   const GoldGradientText = ({ children, className = "" }) => (
-    <span className={`bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] bg-clip-text text-transparent drop-shadow-[0_2px_3px_rgba(0,0,0,0.2)] ${className}`}>
+    <span className={`bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] bg-clip-text text-transparent drop-shadow-[0_1.5px_1.5px_rgba(0,0,0,0.1)] ${className}`}>
       {children}
     </span>
   );
 
-  const GoldGradientBtn = ({ onClick, children, className = "", disabled = false }) => (
-    <button onClick={onClick} disabled={disabled} className={`bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] text-white font-black uppercase tracking-widest transition-all active:scale-95 shadow-xl shadow-[#f0bd53]/20 drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.25)] ${className}`}>
-      {children}
-    </button>
-  );
-
-  const LogoSceau = ({ size = "w-32 h-32", withAnimation = false }) => (
-    <div className={`relative ${size} mx-auto ${withAnimation ? 'animate-bounce-slow' : ''}`}>
-      <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#dc9b3f] via-[#f3df8f] to-[#dc9b3f] p-1.5 shadow-2xl">
-        <div className="w-full h-full rounded-full bg-[#003362] p-1">
-          <div className="w-full h-full rounded-full bg-white flex items-center justify-center p-2 overflow-hidden">
-            <img src={logoDahira} alt="Logo Dahira" className="w-full h-full object-contain" />
-          </div>
-        </div>
-      </div>
+  const LogoCercle = ({ size = "w-24 h-24" }) => (
+    <div className={`${size} rounded-full bg-white border border-[#003362]/10 p-2 flex items-center justify-center shadow-sm mx-auto overflow-hidden`}>
+      <img src={logoDahira} alt="Logo" className="w-full h-full object-contain" />
     </div>
   );
 
   if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-white space-y-12 text-center p-12">
-      <LogoSceau size="w-48 h-48" withAnimation={true} />
-      <div className="space-y-4">
-        <Loader2 className="animate-spin text-[#003362] mx-auto" size={40} />
-        <p className="text-[11px] font-black text-[#003362] uppercase tracking-[0.4em] animate-pulse">Chargement Saytu Nuxba</p>
-      </div>
+    <div className="h-screen flex flex-col items-center justify-center bg-white space-y-6">
+      <LogoCercle size="w-32 h-32" />
+      <Loader2 className="animate-spin text-[#003362]" size={32} />
     </div>
   );
 
@@ -293,81 +229,74 @@ function App() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans flex flex-col antialiased">
-      <style>{`
-        @keyframes bounce-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        .animate-bounce-slow { animation: bounce-slow 4s ease-in-out infinite; }
-      `}</style>
-
+      
       {modal.show && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#003362]/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
-            <div className={`p-8 text-center space-y-4 ${modal.type === 'danger' ? 'bg-red-50' : 'bg-amber-50'}`}>
-              <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center ${modal.type === 'danger' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-[#dc9b3f]'}`}>
-                {modal.type === 'danger' ? <AlertTriangle size={32}/> : <ShieldCheck size={32}/>}
-              </div>
-              <h3 className="text-lg font-black uppercase tracking-tight text-[#003362]">{modal.title}</h3>
+          <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl overflow-hidden">
+            <div className={`p-8 text-center space-y-4 ${modal.type === 'danger' ? 'bg-red-50' : 'bg-emerald-50'}`}>
+              <h3 className="text-lg font-black uppercase text-[#003362]">{modal.title}</h3>
               <p className="text-sm text-slate-500 font-medium">{modal.msg}</p>
             </div>
             <div className="p-4 grid grid-cols-2 gap-3">
-              <button onClick={() => setModal({ ...modal, show: false })} className="py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 bg-slate-50">Annuler</button>
-              <button onClick={() => { modal.onConfirm(); setModal({ ...modal, show: false }); }} className={`py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-white ${modal.type === 'danger' ? 'bg-red-600' : 'bg-[#003362]'}`}>Confirmer</button>
+              <button onClick={() => setModal({ ...modal, show: false })} className="py-4 rounded-xl font-black text-[10px] uppercase text-slate-400 bg-slate-50">Annuler</button>
+              <button onClick={() => { modal.onConfirm(); setModal({ ...modal, show: false }); }} className={`py-4 rounded-xl font-black text-[10px] uppercase text-white ${modal.type === 'danger' ? 'bg-red-600' : 'bg-[#003362]'}`}>Confirmer</button>
             </div>
           </div>
         </div>
       )}
 
       {user && (
-        <header className="sticky top-0 z-[80] bg-[#003362] text-white shadow-xl h-24 border-b-2 border-[#f0bd53]">
-          <div className="max-w-4xl mx-auto px-4 h-full flex justify-between items-center relative">
-            <div className="flex items-center gap-4">
-              <div className="translate-y-4"><LogoSceau size="w-24 h-24" /></div>
-              <span className="font-bold tracking-tighter text-xl uppercase hidden sm:inline ml-4 pt-1">Saytu Nuxba</span>
+        <header className="sticky top-0 z-[80] bg-[#003362] text-white h-16 border-b border-[#f0bd53]/30">
+          <div className="max-w-4xl mx-auto px-4 h-full flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <LogoCercle size="w-10 h-10" />
+              <span className="font-bold tracking-tighter text-sm uppercase hidden sm:inline">Saytu Nuxba</span>
             </div>
-            <nav className="hidden md:flex gap-8 pt-1">
+            <nav className="hidden md:flex gap-6">
               {navItems.map(item => (
                 <button key={item.id} onClick={() => setView(item.id)} className={`flex items-center gap-2 text-xs font-black uppercase transition-colors ${view === item.id ? 'text-[#f0bd53]' : 'text-slate-300 hover:text-white'}`}>
                   <item.icon size={16} /> {item.label}
                 </button>
               ))}
             </nav>
-            <button onClick={() => confirmAction("Déconnexion", "Quitter l'espace ?", () => supabase.auth.signOut().then(() => window.location.reload()))} className="p-1 text-slate-300 hover:text-[#f0bd53] pt-1"><LogOut size={22}/></button>
+            <button onClick={() => confirmAction("Déconnexion", "Quitter ?", () => supabase.auth.signOut().then(() => window.location.reload()))} className="p-1 text-slate-300 hover:text-red-400"><LogOut size={20}/></button>
           </div>
         </header>
       )}
 
       {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white font-black text-[10px] uppercase tracking-widest z-[150] bg-[#003362] animate-in slide-in-from-top-4`}>
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full shadow-2xl text-white font-black text-[9px] uppercase tracking-widest z-[150] bg-[#003362] animate-in slide-in-from-top-4`}>
           {toast.msg}
         </div>
       )}
 
-      <main className="flex-1 w-full max-w-4xl mx-auto p-0 md:p-12 pb-32">
+      <main className="flex-1 w-full max-w-4xl mx-auto p-4 md:p-8 pb-32">
         {view === 'login' && (
-          <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 space-y-12 text-center">
-            <img src={logoDahira} alt="Logo" className="w-48 h-48 object-contain" />
-            <form onSubmit={handleLogin} className="w-full max-w-sm bg-white p-10 rounded-[3rem] border border-slate-100 shadow-2xl space-y-8 relative overflow-hidden text-left">
-              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f]"></div>
-              <div className="text-center space-y-2">
-                <h1 className="text-2xl font-black uppercase tracking-tight text-[#003362]">Espace Saytu</h1>
-                <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Dahira Nuxbatul Haqabatil Xadiimiyyah</p>
+          <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-12">
+            <LogoCercle size="w-40 h-40" />
+            <form onSubmit={handleLogin} className="w-full max-w-sm bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-2xl space-y-8 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f]"></div>
+              <div className="text-center space-y-1">
+                <h1 className="text-xl font-black uppercase tracking-tight text-[#003362]">Espace Saytu</h1>
+                <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em]">Nuxbatul Haqabatil Xadiimiyyah</p>
               </div>
-              <div className="space-y-4">
-                <input type="email" placeholder="Identifiant" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-sm" />
-                <input type="password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-sm" />
+              <div className="space-y-3">
+                <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" />
+                <input type="password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" />
               </div>
-              <GoldGradientBtn className="w-full py-5 rounded-2xl text-[11px]">Se Connecter</GoldGradientBtn>
+              <button className="w-full py-4 rounded-xl bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] text-white font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all shadow-lg shadow-[#f0bd53]/20">Se Connecter</button>
             </form>
           </div>
         )}
 
         {view === 'selection' && (
-          <div className="p-6 space-y-8 animate-in fade-in">
-            <h2 className="text-2xl font-black uppercase tracking-tighter border-l-8 border-[#f0bd53] pl-4 text-[#003362]">Kourels de la Dahira</h2>
-            <div className="grid gap-6">
+          <div className="space-y-6 animate-in fade-in">
+            <h2 className="text-xl font-black uppercase tracking-tighter border-l-4 border-[#f0bd53] pl-4 text-[#003362]">Registre des Kourels</h2>
+            <div className="grid gap-3">
               {kourels.map(k => (
-                <div key={k.id} onClick={() => { setSelectedKourel(k); loadKourelData(k.id); setView('dashboard'); }} className="p-8 bg-white border border-slate-200 rounded-[2.5rem] flex justify-between items-center cursor-pointer hover:shadow-2xl hover:border-[#003362] transition-all group border-b-4 border-b-slate-100">
-                  <div><p className="font-black text-slate-900 group-hover:text-[#003362] uppercase text-xl">{k.name}</p><p className="text-[11px] text-[#dc9b3f] font-black uppercase tracking-widest">{k.location}</p></div>
-                  <div className="bg-[#003362] text-white px-8 py-4 rounded-2xl font-black text-2xl border-b-4 border-b-[#f0bd53]">{kourelStats[k.id]?.rate}%</div>
+                <div key={k.id} onClick={() => { setSelectedKourel(k); loadKourelData(k.id); setView('dashboard'); }} className="p-6 bg-white border border-slate-100 rounded-2xl flex justify-between items-center cursor-pointer hover:border-[#003362] transition-all shadow-sm group">
+                  <div className="space-y-1"><p className="font-black text-slate-900 group-hover:text-[#003362] uppercase text-sm">{k.name}</p><p className="text-[10px] text-[#dc9b3f] font-black uppercase">{k.location}</p></div>
+                  <div className="bg-[#003362] text-white px-4 py-2 rounded-lg font-black text-sm">{kourelStats[k.id]?.rate}%</div>
                 </div>
               ))}
             </div>
@@ -375,106 +304,87 @@ function App() {
         )}
 
         {selectedKourel && (
-          <div className="animate-in fade-in">
+          <div className="animate-in fade-in space-y-6">
             {view === 'dashboard' && (
-              <div className="space-y-0">
-                <div className="bg-[#003362] text-white p-8 md:p-16 md:rounded-[3.5rem] space-y-10 shadow-2xl relative overflow-hidden">
-                   <div className="absolute top-0 right-0 w-64 h-64 bg-[#dc9b3f]/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-                   <div className="relative z-10 space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#f0bd53]">Supervision Active</p>
-                      <h2 className="text-3xl md:text-5xl font-black uppercase leading-tight tracking-tighter">{selectedKourel.name}</h2>
-                   </div>
-                   <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-8">
-                      <div className="space-y-1"><p className="text-[40px] font-black leading-none">{stats.totalSessions}</p><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Sessions</p></div>
-                      <div className="space-y-1"><GoldGradientText className="text-[40px] font-black leading-none">{stats.globalRate}%</GoldGradientText><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Présence</p></div>
-                      <div className="space-y-1"><p className="text-[40px] font-black leading-none">{members.length}</p><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Membres</p></div>
+              <div className="space-y-6">
+                <div className="bg-[#003362] text-white p-8 rounded-[2rem] space-y-6 shadow-xl relative overflow-hidden">
+                   <div className="absolute top-0 right-0 w-32 h-32 bg-[#dc9b3f]/10 rounded-full blur-2xl"></div>
+                   <h2 className="text-2xl font-black uppercase tracking-tighter relative z-10">{selectedKourel.name}</h2>
+                   <div className="grid grid-cols-2 gap-4 relative z-10">
+                      <div className="bg-white/5 p-5 rounded-2xl border border-white/10">
+                        <GoldGradientText className="text-3xl font-black">{stats.globalRate}%</GoldGradientText>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Assiduité</p>
+                      </div>
+                      <div className="bg-white/5 p-5 rounded-2xl border border-white/10">
+                        <p className="text-3xl font-black">{members.length}</p>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Membres Actifs</p>
+                      </div>
                    </div>
                 </div>
-                <div className="p-6 md:p-12 -mt-10 md:-mt-12 relative z-20 space-y-6 text-center">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                    {profile?.role === 'surveillant' && (
-                     <GoldGradientBtn onClick={() => setView('attendance')} className="w-full p-10 rounded-[2.5rem] flex flex-col items-center justify-center gap-2 border-b-8 border-[#dc9b3f] shadow-2xl">
-                        <div className="flex items-center gap-3"><CheckCircle2 size={32} /><span className="text-2xl font-black uppercase tracking-tight">Faire l'appel</span></div>
-                        <p className="text-[9px] text-white/80 font-black uppercase tracking-[0.2em]">{format(new Date(), 'EEEE d MMMM yyyy', { locale: fr })}</p>
-                     </GoldGradientBtn>
+                     <button onClick={() => setView('attendance')} className="bg-gradient-to-r from-[#dc9b3f] to-[#f0bd53] text-white p-6 rounded-2xl shadow-xl flex items-center justify-between group active:scale-95 transition-all">
+                        <div className="text-left"><p className="font-black uppercase text-xs tracking-widest">Faire l'appel</p><p className="text-[9px] opacity-80 font-bold uppercase">{format(new Date(), 'EEEE d MMMM', { locale: fr })}</p></div>
+                        <div className="bg-white/20 p-2 rounded-lg group-hover:rotate-12 transition-transform"><CheckCircle2 size={24}/></div>
+                     </button>
                    )}
-                   {profile?.role === 'coordinateur' && (
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                        <button onClick={() => setView('history')} className="bg-white border-2 border-slate-100 p-8 rounded-[2.5rem] flex items-center justify-between hover:border-[#003362] transition-all group shadow-sm"><div className="space-y-1"><p className="font-black text-[#003362] uppercase text-sm">Archives</p><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Historique complet</p></div><ClipboardList className="text-slate-200 group-hover:text-[#003362] transition-colors" size={32} /></button>
-                        <button onClick={() => setView('mgmt')} className="bg-white border-2 border-slate-100 p-8 rounded-[2.5rem] flex items-center justify-between hover:border-[#003362] transition-all group shadow-sm"><div className="space-y-1"><p className="font-black text-[#003362] uppercase text-sm">Gestion</p><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Membres et accès</p></div><Settings className="text-slate-200 group-hover:text-[#003362] transition-colors" size={32} /></button>
-                     </div>
-                   )}
+                   <button onClick={() => setView('history')} className="bg-white border border-slate-100 p-6 rounded-2xl flex items-center justify-between hover:border-[#003362] transition-all shadow-sm">
+                      <div className="text-left"><p className="font-black text-[#003362] uppercase text-xs tracking-widest">Historique</p><p className="text-[9px] text-slate-400 font-bold uppercase">Consulter les archives</p></div>
+                      <ClipboardList className="text-slate-200" size={24} />
+                   </button>
                 </div>
               </div>
             )}
 
             {view === 'attendance' && (
-              <div className="p-6 md:p-0 space-y-8 pb-20">
-                <div className="bg-white border border-[#003362]/10 p-10 rounded-[3rem] flex flex-col items-center gap-6 shadow-2xl relative">
-                  <GoldGradientText className="text-[11px] font-black uppercase tracking-[0.3em]">Saisie du Registre</GoldGradientText>
-                  <p className="text-xl font-black text-[#003362] uppercase">{format(attendanceDate, 'EEEE d MMMM yyyy', { locale: fr })}</p>
-                  <div className="flex items-center gap-12">
-                    <button onClick={() => setAttendanceDate(new Date(attendanceDate.setDate(attendanceDate.getDate()-1)))} className="p-4 bg-slate-50 text-[#003362] rounded-2xl"><ChevronLeft size={28}/></button>
-                    <div className="relative group p-2"><Calendar className="text-[#dc9b3f] transition-transform group-hover:scale-110" size={48}/><input type="date" value={format(attendanceDate, 'yyyy-MM-dd')} onChange={e => setAttendanceDate(parseISO(e.target.value))} className="absolute inset-0 opacity-0 cursor-pointer" /></div>
-                    <button onClick={() => setAttendanceDate(new Date(attendanceDate.setDate(attendanceDate.getDate()+1)))} className="p-4 bg-slate-50 text-[#003362] rounded-2xl"><ChevronRight size={28}/></button>
+              <div className="space-y-6 pb-20">
+                <div className="bg-white border border-slate-200 p-6 rounded-2xl flex flex-col items-center gap-4 shadow-sm relative">
+                  <p className="text-[10px] font-black text-[#003362] uppercase tracking-[0.3em]">{format(attendanceDate, 'EEEE d MMMM yyyy', { locale: fr })}</p>
+                  <div className="flex items-center gap-10">
+                    <button onClick={() => setAttendanceDate(new Date(attendanceDate.setDate(attendanceDate.getDate()-1)))} className="p-2 bg-slate-50 text-[#003362] rounded-lg"><ChevronLeft size={20}/></button>
+                    <div className="relative"><Calendar className="text-[#dc9b3f]" size={28}/><input type="date" value={format(attendanceDate, 'yyyy-MM-dd')} onChange={e => setAttendanceDate(parseISO(e.target.value))} className="absolute inset-0 opacity-0 cursor-pointer" /></div>
+                    <button onClick={() => setAttendanceDate(new Date(attendanceDate.setDate(attendanceDate.getDate()+1)))} className="p-2 bg-slate-50 text-[#003362] rounded-lg"><ChevronRight size={20}/></button>
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {members.map(m => (
-                    <div key={m.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-8 shadow-sm">
-                      <p className="font-black text-slate-800 uppercase text-sm tracking-tighter">{m.name}</p>
-                      <div className="flex gap-2 w-full sm:w-auto">
+                    <div key={m.id} className="bg-white p-4 rounded-xl border border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm">
+                      <p className="font-black text-slate-800 uppercase text-xs truncate max-w-[200px]">{m.name}</p>
+                      <div className="flex gap-1">
                         {[{ l: 'ABSENT', v: 'Absent', c: 'bg-red-600' }, { l: 'NGANT', v: 'Excusé', c: 'bg-[#dc9b3f]' }, { l: 'PRÉSENT', v: 'Présent', c: 'bg-[#003362]' }].map((btn) => (
-                          <button key={btn.v} onClick={() => setAttendance({...attendance, [m.id]: btn.v})} className={`flex-1 sm:flex-none px-6 py-4 rounded-2xl font-black text-[10px] transition-all ${attendance[m.id] === btn.v ? `${btn.c} text-white shadow-xl scale-105` : 'bg-slate-50 text-slate-300'}`}>{btn.l}</button>
+                          <button key={btn.v} onClick={() => setAttendance({...attendance, [m.id]: btn.v})} className={`px-4 py-2 rounded-lg font-black text-[8px] transition-all ${attendance[m.id] === btn.v ? `${btn.c} text-white shadow-lg` : 'bg-slate-50 text-slate-300'}`}>{btn.l}</button>
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="fixed bottom-24 left-0 right-0 px-6 z-[100]"><GoldGradientBtn onClick={() => confirmAction("Validation", "Enregistrer la séance ?", saveAttendance)} disabled={saving} className="w-full max-w-sm py-6 rounded-[2.5rem] text-[12px] tracking-[0.4em] mx-auto block">VALIDER L'APPEL</GoldGradientBtn></div>
+                <div className="fixed bottom-24 left-0 right-0 px-6 z-[100]"><button onClick={() => confirmAction("Validation", "Valider la séance ?", saveAttendance)} disabled={saving} className="w-full max-w-xs mx-auto py-4 rounded-xl bg-[#003362] text-white font-black uppercase text-[10px] tracking-widest shadow-2xl block">{saving ? 'EN COURS...' : 'VALIDER L\'APPEL'}</button></div>
               </div>
             )}
 
             {view === 'history' && (
-              <div className="p-6 md:p-0 space-y-8">
-                <div className="bg-white border border-slate-200 p-8 rounded-[2rem] space-y-6 shadow-lg">
-                  <div className="flex justify-between items-center text-left">
-                    <div className="flex items-center gap-3"><ClipboardList className="text-[#003362]" size={32}/><h2 className="text-2xl font-black uppercase tracking-tight text-[#003362]">Archives</h2></div>
-                    <button onClick={() => generateFilteredPDF()} disabled={filteredHistory.length === 0} className="bg-[#003362] text-white px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">PDF Global</button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-2">Mois</label><input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" /></div>
-                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-2">Membre</label><input type="text" placeholder="Rechercher..." value={histSearch} onChange={e => setHistSearch(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" /></div>
-                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-2">Filtre Statut</label><select value={histStatus} onChange={e => setHistStatus(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs"><option value="Tous">Tous</option><option value="Présent">Présents</option><option value="Absent">Absents</option><option value="Excusé">NGANT</option></select></div>
+              <div className="space-y-6">
+                <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-lg text-left">
+                  <div className="flex justify-between items-center"><h2 className="text-sm font-black uppercase tracking-tight text-[#003362]">Archives</h2><button onClick={() => generateFilteredPDF()} disabled={filteredHistory.length === 0} className="bg-[#003362] text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase shadow-lg">Export PDF</button></div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-xs" />
+                    <input type="text" placeholder="Membre..." value={histSearch} onChange={e => setHistSearch(e.target.value)} className="p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-xs" />
+                    <select value={histStatus} onChange={e => setHistStatus(e.target.value)} className="p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-xs"><option value="Tous">Tous</option><option value="Présent">Présents</option><option value="Absent">Absents</option><option value="Excusé">NGANT</option></select>
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {sessionsList.filter(d => d.startsWith(selectedMonth)).map(date => (
-                    <div key={date} className="bg-white border border-slate-100 rounded-[2rem] shadow-sm overflow-hidden transition-all">
-                       <button onClick={() => setExpandedSession(expandedSession === date ? null : date)} className="w-full p-8 flex justify-between items-center hover:bg-slate-50">
-                         <div className="text-left space-y-1">
-                           <p className="font-black text-[#003362] uppercase text-sm">{format(parseISO(date), 'EEEE d MMMM yyyy', { locale: fr })}</p>
-                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{history.filter(h => h.date === date).length} enregistrements</p>
-                         </div>
-                         <div className="flex items-center gap-4">
-                            <button onClick={(e) => { e.stopPropagation(); generateFilteredPDF(date); }} className="p-3 text-emerald-600 bg-emerald-50 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><FileDown size={18}/></button>
-                            {expandedSession === date ? <ChevronUp className="text-[#003362]" /> : <ChevronDown className="text-slate-300" />}
-                         </div>
+                    <div key={date} className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+                       <button onClick={() => setExpandedSession(expandedSession === date ? null : date)} className="w-full p-6 flex justify-between items-center">
+                         <div className="text-left space-y-1"><p className="font-black text-[#003362] uppercase text-xs">{format(parseISO(date), 'EEEE d MMMM yyyy', { locale: fr })}</p></div>
+                         <div className="flex items-center gap-3"><button onClick={(e) => { e.stopPropagation(); generateFilteredPDF(date); }} className="p-2 text-emerald-600 bg-emerald-50 rounded-lg"><FileDown size={16}/></button>{expandedSession === date ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}</div>
                        </button>
                        {expandedSession === date && (
-                         <div className="p-8 bg-slate-50 border-t border-slate-100 space-y-4 text-left">
-                           <p className="text-[10px] font-black text-[#dc9b3f] uppercase tracking-[0.3em]">Détails du jour</p>
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                             {history.filter(h => h.date === date).map(h => (
-                               <div key={h.id} className="bg-white p-5 rounded-2xl border border-slate-100 flex justify-between items-center">
-                                 <p className="font-black text-xs text-slate-700 uppercase">{h.members?.name}</p>
-                                 <span className={`text-[8px] font-black px-3 py-1.5 rounded-lg border ${
-                                   h.status === 'Présent' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 
-                                   h.status === 'Absent' ? 'text-red-700 bg-red-50 border-red-100' : 
-                                   'text-[#dc9b3f] bg-amber-50 border-amber-100'
-                                 }`}>{h.status === 'Excusé' ? 'NGANT' : h.status.toUpperCase()}</span>
-                               </div>
-                             ))}
-                           </div>
+                         <div className="p-6 bg-slate-50 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-2">
+                           {history.filter(h => h.date === date).map(h => (
+                             <div key={h.id} className="bg-white p-3 rounded-lg border border-slate-100 flex justify-between items-center"><p className="font-bold text-[10px] uppercase text-slate-700">{h.members?.name}</p><span className={`text-[7px] font-black px-2 py-0.5 rounded ${h.status === 'Présent' ? 'bg-emerald-50 text-emerald-700' : h.status === 'Absent' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{h.status.toUpperCase()}</span></div>
+                           ))}
                          </div>
                        )}
                     </div>
@@ -482,73 +392,15 @@ function App() {
                 </div>
               </div>
             )}
-
-            {view === 'mgmt' && (
-              <div className="p-6 md:p-0 space-y-10">
-                <div className="flex bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm overflow-hidden max-w-sm">
-                   <button onClick={() => setMgmtTab('members')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'members' ? 'bg-[#003362] text-white shadow-lg' : 'text-slate-400'}`}>Membres</button>
-                   <button onClick={() => setMgmtTab('sessions')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'sessions' ? 'bg-[#003362] text-white shadow-lg' : 'text-slate-400'}`}>Sessions</button>
-                   {profile?.role === 'coordinateur' && <button onClick={() => setMgmtTab('users')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'users' ? 'bg-[#003362] text-white shadow-lg' : 'text-slate-400'}`}>Admin</button>}
-                </div>
-                
-                {mgmtTab === 'members' && (
-                  <div className="space-y-6 text-left">
-                    {profile?.role === 'surveillant' && (
-                      <div className="bg-white border border-[#003362]/10 p-10 rounded-[3rem] space-y-6 shadow-xl relative overflow-hidden">
-                        <GoldGradientText className="text-[11px] font-black uppercase tracking-widest underline decoration-[#003362] underline-offset-8">{editingMember ? 'Modification' : 'Nouvelle Inscription'}</GoldGradientText>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <input type="text" placeholder="Nom Complet" value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} className="p-5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
-                          <input type="tel" placeholder="Téléphone" value={newMember.phone} onChange={e => setNewMember({...newMember, phone: e.target.value})} className="p-5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
-                        </div>
-                        <GoldGradientBtn onClick={handleAddOrUpdateMember} className="w-full py-5 rounded-xl text-[11px] tracking-[0.2em]">{editingMember ? 'Valider' : 'Inscrire'}</GoldGradientBtn>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-1 gap-3">
-                      {allMembers.map(m => (
-                        <div key={m.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 flex justify-between items-center shadow-sm">
-                          <div><p className="font-black text-slate-800 uppercase text-sm tracking-tight">{m.name}</p><p className="text-[10px] text-[#003362] font-black">{m.phone || 'SANS CONTACT'}</p></div>
-                          <div className="flex gap-2">
-                             {m.phone && <a href={`tel:${m.phone}`} className="p-3 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100"><Phone size={18}/></a>}
-                             {profile?.role === 'surveillant' && (
-                               <div className="flex gap-2">
-                                 <button onClick={() => { setEditingMember(m); setNewMember({name: m.name, phone: m.phone || ''}); window.scrollTo({top:0, behavior:'smooth'}); }} className="p-3 bg-slate-50 text-slate-600 rounded-xl border border-slate-200"><Pencil size={18}/></button>
-                                 <button onClick={() => handleDeleteMember(m.id)} className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-100"><Trash2 size={18}/></button>
-                               </div>
-                             )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {mgmtTab === 'sessions' && (
-                  <div className="grid gap-3 text-left">
-                    {sessionsList.map(date => (
-                      <div key={date} className="bg-white p-6 rounded-[2rem] border border-slate-100 flex justify-between items-center shadow-sm">
-                         <div className="space-y-1">
-                           <p className="font-black text-[#003362] uppercase text-sm">{format(parseISO(date), 'dd/MM/yyyy')}</p>
-                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{format(parseISO(date), 'EEEE', { locale: fr })}</p>
-                         </div>
-                         <div className="flex items-center gap-2">
-                           <button onClick={() => { setAttendanceDate(parseISO(date)); setView('attendance'); window.scrollTo({top:0, behavior:'smooth'}); }} className="p-3 bg-slate-50 text-[#003362] rounded-xl hover:bg-[#003362] hover:text-white transition-all shadow-sm"><Pencil size={18}/></button>
-                           {profile?.role === 'coordinateur' && <button onClick={() => deleteSession(date)} className="p-3 bg-red-50 text-red-600 rounded-xl shadow-sm"><Trash2 size={18}/></button>}
-                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         )}
       </main>
 
-      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#003362]/95 backdrop-blur-xl border-t-4 border-[#f0bd53] h-24 flex justify-around items-center z-[120] px-4 shadow-2xl">
+      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#003362]/95 backdrop-blur-xl border-t border-[#f0bd53]/30 h-16 flex justify-around items-center z-[120] px-2 shadow-2xl">
         {navItems.map(item => (
-          <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center gap-1 p-2 min-w-[75px] transition-all ${view === item.id ? 'text-[#f0bd53] scale-110' : 'text-slate-300 opacity-60'}`}>
-            <item.icon size={26} strokeWidth={view === item.id ? 3 : 2} />
-            <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
+          <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === item.id ? 'text-[#f0bd53] scale-110' : 'text-slate-300 opacity-60'}`}>
+            <item.icon size={22} strokeWidth={view === item.id ? 3 : 2} />
+            <span className="text-[8px] font-black uppercase">{item.label}</span>
           </button>
         ))}
       </nav>
