@@ -9,7 +9,7 @@ import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'da
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import logoDahira from './assets/logo_dahira.png';
+import logoDahira from './assets/logodahira.png';
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -226,7 +226,7 @@ function App() {
   ].filter(item => item.roles.includes(profile?.role));
 
   const GoldGradientText = ({ children, className = "" }) => (
-    <span className={`bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] bg-clip-text text-transparent ${className}`}>
+    <span className={`bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] bg-clip-text text-transparent drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.1)] ${className}`}>
       {children}
     </span>
   );
@@ -235,7 +235,7 @@ function App() {
     <button 
       onClick={onClick} 
       disabled={disabled}
-      className={`bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] text-white font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-[#f0bd53]/20 ${className}`}
+      className={`bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f] text-white font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-[#f0bd53]/20 drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.2)] ${className}`}
     >
       {children}
     </button>
