@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { 
-  LayoutDashboard, CheckCircle2, History, Settings, LogOut, 
-  Plus, Save, Loader2, ChevronLeft, ChevronRight, Search, 
-  MessageCircle, Phone, FileDown, Trash2, UserPlus, Users
+  LayoutGrid, CheckCircle2, ClipboardList, ShieldCheck, LogOut, 
+  UserPlus, Save, Loader2, ChevronLeft, ChevronRight, Search, 
+  MessageCircle, Phone, FileDown, Trash2, Users, MoreHorizontal, X, Plus
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -19,7 +19,6 @@ function App() {
   const [members, setMembers] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
   const [attendance, setAttendance] = useState({});
-  const [attendanceNotes, setAttendanceNotes] = useState({});
   const [attendanceDate, setAttendanceDate] = useState(new Date());
   const [stats, setStats] = useState({ totalSessions: 0, globalRate: 0 });
   const [saving, setSaving] = useState(false);
@@ -29,7 +28,7 @@ function App() {
   const [allProfiles, setAllProfiles] = useState([]);
   const [toast, setToast] = useState(null);
   const [mgmtTab, setMgmtTab] = useState('members');
-  const [attendanceSearch, setAttendanceSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -103,28 +102,18 @@ function App() {
     setSaving(true);
     const dateStr = format(attendanceDate, 'yyyy-MM-dd');
     const records = Object.entries(attendance).map(([mId, status]) => ({ 
-      member_id: mId, status, date: dateStr, notes: attendanceNotes[mId] || null 
+      member_id: mId, status, date: dateStr
     }));
     const { error } = await supabase.from('attendance').insert(records);
-    if (!error) { showToast('Appel enregistré !'); await loadKourelData(selectedKourel.id); setView('dashboard'); }
-    else { showToast(error.message, 'error'); }
-    setSaving(false);
-  };
-
-  const deleteSession = async (date) => {
-    if (!window.confirm(`Supprimer la séance du ${date} ?`)) return;
-    setSaving(true);
-    const mIds = allMembers.map(m => m.id);
-    await supabase.from('attendance').delete().eq('date', date).in('member_id', mIds);
-    await loadKourelData(selectedKourel.id);
+    if (!error) { showToast('Pointage validé'); await loadKourelData(selectedKourel.id); setView('dashboard'); }
+    else { showToast('Erreur lors de l\'enregistrement', 'error'); }
     setSaving(false);
   };
 
   const handleUpdateProfile = async (pId, newRole, newKourelId) => {
-    setSaving(true);
     await supabase.from('profiles').update({ role: newRole, kourel_id: newKourelId }).eq('id', pId);
     await fetchGlobalStats();
-    setSaving(false);
+    showToast('Compte mis à jour');
   };
 
   const handleLogin = async (e) => {
@@ -132,7 +121,7 @@ function App() {
     setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (!error) await fetchProfile(data.user.id);
-    else { showToast('Erreur de connexion', 'error'); setLoading(false); }
+    else { showToast('Identifiants incorrects', 'error'); setLoading(false); }
   };
 
   const handleLogout = async () => {
@@ -140,254 +129,307 @@ function App() {
     window.location.reload();
   };
 
-  const generatePDF = () => {
+  const generatePDF = (date) => {
     const doc = new jsPDF();
-    doc.text(`Rapport ${selectedKourel.name}`, 14, 20);
-    const tableData = history.map(h => [h.members?.name, h.status, h.date, h.notes || '']);
-    doc.autoTable({ startY: 30, head: [['Membre', 'Statut', 'Date', 'Note']], body: tableData });
-    doc.save(`Rapport_${selectedKourel.name}.pdf`);
+    const data = date ? history.filter(h => h.date === date) : history;
+    doc.text(`Rapport de Presence - ${selectedKourel.name}`, 14, 20);
+    doc.autoTable({ 
+      startY: 30, 
+      head: [['Nom', 'Statut', 'Date']], 
+      body: data.map(h => [h.members?.name, h.status, h.date]) 
+    });
+    doc.save(`Rapport_${selectedKourel.name}_${date || 'global'}.pdf`);
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-indigo-600" size={40} /></div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans pb-20 md:pb-0 md:pl-64">
+    <div className="min-h-screen bg-[#F9FAFB] text-[#111827] font-sans selection:bg-indigo-100">
       
+      {/* HEADER FIXE (Desktop & Mobile) */}
+      {user && (
+        <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 py-4 md:px-8">
+          <div className="max-w-7xl mx-auto flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-indigo-200 shadow-lg">
+                <ShieldCheck size={22} />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold leading-tight">Saytu Kurel</h1>
+                {selectedKourel && <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{selectedKourel.name}</p>}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+               {profile?.role === 'coordinateur' && view !== 'selection' && (
+                 <button onClick={() => setView('selection')} className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"><LayoutGrid size={20}/></button>
+               )}
+               <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><LogOut size={20}/></button>
+            </div>
+          </div>
+        </header>
+      )}
+
       {/* TOAST NOTIFICATION */}
       {toast && (
-        <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg text-white font-bold text-sm ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl text-white font-bold text-sm animate-in slide-in-from-bottom-5 ${toast.type === 'success' ? 'bg-gray-900' : 'bg-red-600'}`}>
           {toast.msg}
         </div>
       )}
 
-      {/* SIDEBAR (Desktop) */}
-      {user && view !== 'login' && view !== 'selection' && (
-        <aside className="hidden md:flex fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 flex-col p-6">
-          <h1 className="text-xl font-bold text-blue-600 mb-8">Saytu Kurel</h1>
-          <nav className="flex-1 space-y-2">
-            {[
-              { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-              { id: 'attendance', label: 'Faire l\'appel', icon: CheckCircle2 },
-              { id: 'history', label: 'Historique', icon: History },
-              { id: 'mgmt', label: 'Gestion', icon: Settings },
-            ].map(item => (
-              <button key={item.id} onClick={() => setView(item.id)} className={`w-full flex items-center gap-3 p-3 rounded-lg font-medium transition ${view === item.id ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}>
-                <item.icon size={20} /> {item.label}
-              </button>
-            ))}
-          </nav>
-          <button onClick={handleLogout} className="flex items-center gap-3 p-3 text-red-500 font-medium hover:bg-red-50 rounded-lg">
-            <LogOut size={20} /> Déconnexion
-          </button>
-        </aside>
-      )}
-
-      {/* LOGIN VIEW */}
-      {view === 'login' && (
-        <div className="min-h-screen flex items-center justify-center px-4">
-          <form onSubmit={handleLogin} className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-xl space-y-6">
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold">Saytu Kurel</h1>
-              <p className="text-gray-500">Connectez-vous pour continuer</p>
-            </div>
-            <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-blue-500" />
-            <input type="password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-blue-500" />
-            <button type="submit" className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition">Se connecter</button>
-          </form>
-        </div>
-      )}
-
-      {/* SELECTION VIEW (Coordinateur) */}
-      {view === 'selection' && (
-        <div className="max-w-2xl mx-auto p-6 space-y-6">
-          <h2 className="text-2xl font-bold">Sélectionnez un Kourel</h2>
-          <div className="grid gap-4">
-            {kourels.map(k => (
-              <div key={k.id} onClick={() => { setSelectedKourel(k); loadKourelData(k.id); setView('dashboard'); }} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center cursor-pointer hover:border-blue-500 transition">
-                <div>
-                  <p className="font-bold">{k.name}</p>
-                  <p className="text-xs text-gray-400 uppercase">{k.location}</p>
+      <main className={`max-w-7xl mx-auto ${user ? 'p-4 md:p-8 pb-32' : ''}`}>
+        
+        {/* LOGIN */}
+        {view === 'login' && (
+          <div className="min-h-screen flex flex-col items-center justify-center p-4">
+            <div className="w-full max-w-md space-y-8 bg-white p-10 rounded-[32px] shadow-sm border border-gray-50">
+              <div className="text-center space-y-3">
+                <div className="w-20 h-20 bg-indigo-600 rounded-3xl mx-auto flex items-center justify-center text-white shadow-2xl shadow-indigo-200">
+                  <ShieldCheck size={40} />
                 </div>
-                <div className="text-blue-600 font-bold">{kourelStats[k.id]?.rate}%</div>
+                <h1 className="text-3xl font-black tracking-tight">Bienvenue</h1>
+                <p className="text-gray-400 font-medium">Connectez-vous à votre compte Saytu</p>
               </div>
-            ))}
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-gray-400 ml-4">Email</label>
+                  <input type="email" placeholder="nom@exemple.com" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 ring-indigo-500 transition-all" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-gray-400 ml-4">Mot de passe</label>
+                  <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 ring-indigo-500 transition-all" />
+                </div>
+                <button type="submit" className="w-full py-5 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all shadow-lg active:scale-[0.98]">Se connecter</button>
+              </form>
+            </div>
           </div>
-          <button onClick={handleLogout} className="w-full p-4 text-red-500 font-bold border border-red-200 rounded-xl mt-4">Déconnexion</button>
-        </div>
-      )}
+        )}
 
-      {/* APP VIEWS */}
-      {selectedKourel && view !== 'login' && view !== 'selection' && (
-        <div className="p-4 md:p-10 max-w-6xl mx-auto space-y-8">
-          
-          <header className="flex justify-between items-center">
-            <div>
-              <p className="text-blue-600 font-bold text-xs uppercase tracking-widest">{selectedKourel.location}</p>
-              <h1 className="text-2xl font-bold">{selectedKourel.name}</h1>
+        {/* SELECTION KUREL */}
+        {view === 'selection' && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="space-y-2">
+              <h2 className="text-3xl font-black tracking-tight">Kourels</h2>
+              <p className="text-gray-400 font-medium">Sélectionnez un groupe pour voir les détails</p>
             </div>
-            {profile?.role === 'coordinateur' && (
-              <button onClick={() => { setView('selection'); fetchGlobalStats(); }} className="p-2 text-gray-400 hover:text-blue-600"><ChevronLeft size={24} /></button>
-            )}
-          </header>
-
-          {view === 'dashboard' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                  <p className="text-gray-400 text-xs font-bold uppercase">Séances</p>
-                  <p className="text-3xl font-bold">{stats.totalSessions}</p>
-                </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                  <p className="text-gray-400 text-xs font-bold uppercase">Assiduité</p>
-                  <p className="text-3xl font-bold text-green-600">{stats.globalRate}%</p>
-                </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                  <p className="text-gray-400 text-xs font-bold uppercase">Membres</p>
-                  <p className="text-3xl font-bold text-blue-600">{members.length}</p>
-                </div>
-              </div>
-
-              <div className="bg-blue-600 p-8 rounded-3xl text-white shadow-lg cursor-pointer hover:bg-blue-700 transition" onClick={() => setView('attendance')}>
-                <h3 className="text-xl font-bold">Lancer l'appel aujourd'hui</h3>
-                <p className="opacity-80 text-sm">Séance du {format(new Date(), 'dd MMMM yyyy', { locale: fr })}</p>
-              </div>
-            </div>
-          )}
-
-          {view === 'attendance' && (
-            <div className="space-y-6 pb-20">
-              <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <div className="flex items-center gap-4">
-                  <button onClick={() => { const d = new Date(attendanceDate); d.setDate(d.getDate() - 1); setAttendanceDate(d); }} className="p-2 bg-gray-100 rounded-lg"><ChevronLeft size={20}/></button>
-                  <input type="date" value={format(attendanceDate, 'yyyy-MM-dd')} onChange={e => setAttendanceDate(parseISO(e.target.value))} className="font-bold outline-none" />
-                  <button onClick={() => { const d = new Date(attendanceDate); d.setDate(d.getDate() + 1); setAttendanceDate(d); }} className="p-2 bg-gray-100 rounded-lg"><ChevronRight size={20}/></button>
-                </div>
-                <div className="relative w-full md:w-64">
-                  <Search size={18} className="absolute left-3 top-3 text-gray-300" />
-                  <input type="text" placeholder="Rechercher..." value={attendanceSearch} onChange={e => setAttendanceSearch(e.target.value)} className="w-full pl-10 p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm" />
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                {members.filter(m => m.name.toLowerCase().includes(attendanceSearch.toLowerCase())).map(m => (
-                  <div key={m.id} className="p-4 flex flex-col sm:flex-row justify-between items-center gap-4 border-b border-gray-50 last:border-0">
-                    <div className="flex items-center gap-4 w-full">
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-blue-600">{m.name.charAt(0)}</div>
-                      <div>
-                        <p className="font-bold">{m.name}</p>
-                        <p className="text-[10px] text-gray-400 uppercase">{m.faculty} • {m.level}</p>
-                      </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {kourels.map(k => (
+                <div key={k.id} onClick={() => { setSelectedKourel(k); loadKourelData(k.id); setView('dashboard'); }} className="group bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all cursor-pointer relative overflow-hidden">
+                  <div className="relative z-10 space-y-4">
+                    <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-black group-hover:bg-indigo-600 group-hover:text-white transition-colors">{k.name.charAt(0)}</div>
+                    <div>
+                      <h3 className="font-bold text-xl group-hover:text-indigo-600 transition-colors">{k.name}</h3>
+                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mt-1">{k.location}</p>
                     </div>
-                    <div className="flex gap-1 bg-gray-50 p-1 rounded-xl w-full sm:w-auto">
-                      {['Présent', 'Retard', 'Absent', 'Excusé'].map(s => (
-                        <button key={s} onClick={() => setAttendance({...attendance, [m.id]: s})} className={`flex-1 px-3 py-2 rounded-lg text-[10px] font-bold uppercase transition ${attendance[m.id] === s ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400'}`}>
-                          {s.charAt(0)}
-                        </button>
-                      ))}
+                    <div className="flex justify-between items-end pt-4">
+                      <span className="text-3xl font-black text-indigo-600">{kourelStats[k.id]?.rate}%</span>
+                      <span className="text-[10px] font-black uppercase text-gray-300">Taux de présence</span>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-              <button onClick={saveAttendance} disabled={saving} className="fixed bottom-24 md:bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-xl flex items-center justify-center gap-3 active:scale-95 transition">
-                {saving ? <Loader2 className="animate-spin" size={20}/> : <Save size={20} />} Enregistrer l'appel
+        {/* DASHBOARD */}
+        {selectedKourel && view === 'dashboard' && (
+          <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                { label: 'Séances', value: stats.totalSessions, color: 'text-gray-900', bg: 'bg-white' },
+                { label: 'Présence', value: `${stats.globalRate}%`, color: 'text-emerald-600', bg: 'bg-white' },
+                { label: 'Membres', value: members.length, color: 'text-indigo-600', bg: 'bg-white' },
+              ].map((s, i) => (
+                <div key={i} className={`${s.bg} p-8 rounded-[32px] border border-gray-100 shadow-sm flex flex-col items-center justify-center space-y-1`}>
+                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em]">{s.label}</p>
+                  <p className={`text-4xl font-black ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-gray-900 p-10 rounded-[40px] text-white shadow-2xl shadow-indigo-100 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden" onClick={() => setView('attendance')}>
+              <div className="relative z-10 space-y-2 text-center md:text-left">
+                <h3 className="text-2xl font-black tracking-tight">Appel du Jour</h3>
+                <p className="text-gray-400 font-medium">Session du {format(new Date(), 'EEEE d MMMM', { locale: fr })}</p>
+              </div>
+              <button className="relative z-10 bg-white text-black px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all">Démarrer maintenant</button>
+              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+            </div>
+          </div>
+        )}
+
+        {/* POINTAGE (ATTENDANCE) */}
+        {view === 'attendance' && (
+          <div className="space-y-6 pb-32 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="flex items-center bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+                <button onClick={() => { const d = new Date(attendanceDate); d.setDate(d.getDate()-1); setAttendanceDate(d); }} className="p-3 hover:bg-gray-50 rounded-xl transition-colors"><ChevronLeft size={20}/></button>
+                <div className="px-6 text-center">
+                  <p className="text-[8px] font-black uppercase text-gray-400">Date de session</p>
+                  <input type="date" value={format(attendanceDate, 'yyyy-MM-dd')} onChange={e => setAttendanceDate(parseISO(e.target.value))} className="font-black text-sm bg-transparent outline-none" />
+                </div>
+                <button onClick={() => { const d = new Date(attendanceDate); d.setDate(d.getDate()+1); setAttendanceDate(d); }} className="p-3 hover:bg-gray-50 rounded-xl transition-colors"><ChevronRight size={20}/></button>
+              </div>
+              <div className="relative w-full md:w-80">
+                <Search className="absolute left-4 top-4 text-gray-300" size={20} />
+                <input type="text" placeholder="Trouver un membre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full p-4 pl-12 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 ring-indigo-500 shadow-sm transition-all" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {members.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase())).map(m => (
+                <div key={m.id} className="bg-white p-4 rounded-[24px] border border-gray-50 shadow-sm flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm transition-all ${
+                      attendance[m.id] === 'Présent' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-50 text-gray-400'
+                    }`}>{m.name.charAt(0)}</div>
+                    <div className="truncate">
+                      <p className="font-bold text-sm truncate">{m.name}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{m.level}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 bg-gray-50 p-1.5 rounded-2xl">
+                    {['A', 'R', 'E', 'P'].map((label, idx) => {
+                      const status = ['Absent', 'Retard', 'Excusé', 'Présent'][idx];
+                      const colors = ['text-red-500', 'text-orange-500', 'text-blue-500', 'text-indigo-600'];
+                      return (
+                        <button key={label} onClick={() => setAttendance({...attendance, [m.id]: status})} className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs transition-all ${
+                          attendance[m.id] === status ? `bg-white shadow-md ${colors[idx]}` : 'text-gray-300 hover:text-gray-400'
+                        }`}>{label}</button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="fixed bottom-24 md:bottom-10 left-0 right-0 px-4 z-50">
+              <button onClick={saveAttendance} disabled={saving} className="w-full max-w-md mx-auto py-5 bg-indigo-600 text-white rounded-3xl font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl shadow-indigo-200 flex items-center justify-center gap-3 active:scale-95 transition-all">
+                {saving ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>}
+                Valider la séance
               </button>
             </div>
-          )}
+          </div>
+        )}
 
-          {view === 'history' && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold">Historique</h2>
-                <button onClick={generatePDF} className="flex items-center gap-2 p-2 text-blue-600 font-bold bg-blue-50 rounded-lg text-sm"><FileDown size={18}/> PDF</button>
+        {/* HISTORIQUE */}
+        {view === 'history' && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-3xl font-black tracking-tight">Historique</h2>
+                <p className="text-gray-400 font-medium">Toutes les sessions passées</p>
               </div>
-              <div className="space-y-4">
-                {[...new Set(history.map(h => h.date))].sort((a,b) => new Date(b) - new Date(a)).map(date => (
-                  <div key={date} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-3">{format(parseISO(date), 'EEEE d MMMM yyyy', { locale: fr })}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {history.filter(h => h.date === date).map(h => (
-                        <div key={h.id} className={`px-3 py-1.5 rounded-full text-[10px] font-bold border ${h.status === 'Présent' ? 'bg-green-50 text-green-700 border-green-100' : h.status === 'Absent' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
-                          {h.members?.name}
-                        </div>
-                      ))}
+              <button onClick={() => generatePDF()} className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center gap-2 font-black text-[10px] tracking-widest uppercase"><FileDown size={20}/> Global</button>
+            </div>
+            
+            <div className="space-y-4">
+              {[...new Set(history.map(h => h.date))].sort((a,b) => new Date(b)-new Date(a)).map(date => (
+                <div key={date} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm space-y-6">
+                  <div className="flex justify-between items-center pb-4 border-b border-gray-50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
+                      <p className="font-black text-sm uppercase tracking-wider">{format(parseISO(date), 'EEEE d MMMM yyyy', { locale: fr })}</p>
+                    </div>
+                    <button onClick={() => generatePDF(date)} className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"><FileDown size={20}/></button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {history.filter(h => h.date === date).map(h => (
+                      <div key={h.id} className={`px-4 py-2 rounded-xl text-[10px] font-bold border transition-all ${
+                        h.status === 'Présent' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+                        h.status === 'Absent' ? 'bg-red-50 text-red-700 border-red-100' : 
+                        'bg-orange-50 text-orange-700 border-orange-100'
+                      }`}>{h.members?.name}</div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* GESTION (MGMT) */}
+        {view === 'mgmt' && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex bg-white p-1.5 rounded-2xl border border-gray-100 shadow-sm max-w-sm">
+              {['members', 'sessions', 'users'].filter(t => profile?.role === 'coordinateur' || t !== 'users').map(tab => (
+                <button key={tab} onClick={() => setMgmtTab(tab)} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === tab ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-gray-400'}`}>{tab}</button>
+              ))}
+            </div>
+
+            {mgmtTab === 'members' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button onClick={() => { const name = window.prompt("Nom complet ?"); if(name) supabase.from('members').insert([{name, kourel_id: selectedKourel.id}]).then(() => loadKourelData(selectedKourel.id)); }} className="p-10 border-2 border-dashed border-gray-200 rounded-[32px] text-gray-400 font-black text-xs uppercase tracking-widest flex flex-col items-center gap-4 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all">
+                  <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center"><UserPlus size={24} /></div>
+                  Ajouter un membre
+                </button>
+                {allMembers.map(m => (
+                  <div key={m.id} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex justify-between items-center group">
+                    <div className="min-w-0">
+                      <p className="font-bold text-gray-900 truncate">{m.name}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{m.faculty || 'Sans Faculté'}</p>
+                    </div>
+                    <div className="flex items-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                      {m.phone && <a href={`tel:${m.phone}`} className="p-3 text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-600 hover:text-white transition-all"><Phone size={18}/></a>}
+                      <button onClick={async () => { if(window.confirm('Changer le statut ?')) { await supabase.from('members').update({active: !m.active}).eq('id', m.id); loadKourelData(selectedKourel.id); }}} className={`p-3 rounded-xl transition-all ${m.active ? 'text-orange-500 bg-orange-50 hover:bg-orange-500 hover:text-white' : 'text-green-500 bg-green-50 hover:bg-green-500 hover:text-white'}`}><Users size={18}/></button>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {view === 'mgmt' && (
-            <div className="space-y-6">
-              <div className="flex bg-gray-100 p-1 rounded-xl">
-                <button onClick={() => setMgmtTab('members')} className={`flex-1 py-3 rounded-lg text-xs font-bold transition ${mgmtTab === 'members' ? 'bg-white shadow-sm' : 'text-gray-400'}`}>MEMBRES</button>
-                <button onClick={() => setMgmtTab('sessions')} className={`flex-1 py-3 rounded-lg text-xs font-bold transition ${mgmtTab === 'sessions' ? 'bg-white shadow-sm' : 'text-gray-400'}`}>SESSIONS</button>
-                {profile?.role === 'coordinateur' && <button onClick={() => setMgmtTab('users')} className={`flex-1 py-3 rounded-lg text-xs font-bold transition ${mgmtTab === 'users' ? 'bg-white shadow-sm' : 'text-gray-400'}`}>ADMIN</button>}
+            {mgmtTab === 'sessions' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[...new Set(history.map(h => h.date))].map(date => (
+                  <div key={date} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex justify-between items-center">
+                    <p className="font-bold">{format(parseISO(date), 'd MMMM yyyy', { locale: fr })}</p>
+                    <button onClick={() => deleteSession(date)} className="p-3 text-red-500 bg-red-50 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={18}/></button>
+                  </div>
+                ))}
               </div>
+            )}
 
-              {mgmtTab === 'members' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button onClick={() => { const name = window.prompt("Nom du membre ?"); if(name) supabase.from('members').insert([{name, kourel_id: selectedKourel.id}]).then(() => loadKourelData(selectedKourel.id)); }} className="p-6 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 font-bold flex flex-col items-center gap-2 hover:border-blue-500 hover:text-blue-500 transition">
-                    <Plus size={24} /> AJOUTER UN MEMBRE
-                  </button>
-                  {allMembers.map(m => (
-                    <div key={m.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                      <div><p className="font-bold">{m.name}</p><p className="text-[10px] text-gray-400">{m.faculty}</p></div>
-                      <div className="flex gap-2">
-                        {m.phone && <a href={`tel:${m.phone}`} className="p-2 text-blue-500 bg-blue-50 rounded-lg"><Phone size={16}/></a>}
-                        <button onClick={async () => { if(window.confirm('Désactiver ?')) { await supabase.from('members').update({active: !m.active}).eq('id', m.id); loadKourelData(selectedKourel.id); }}} className={`p-2 rounded-lg ${m.active ? 'text-orange-500 bg-orange-50' : 'text-green-500 bg-green-50'}`}><Users size={16}/></button>
+            {mgmtTab === 'users' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {allProfiles.map(p => (
+                  <div key={p.id} className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm space-y-6">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <p className="font-black text-xs truncate max-w-[200px]">{p.email}</p>
+                        <span className={`inline-block text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${p.role === 'coordinateur' ? 'bg-gray-900 text-white' : 'bg-indigo-50 text-indigo-600'}`}>{p.role}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {mgmtTab === 'sessions' && (
-                <div className="space-y-4">
-                  {[...new Set(history.map(h => h.date))].map(date => (
-                    <div key={date} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                      <p className="font-bold">{format(parseISO(date), 'dd MMMM yyyy', { locale: fr })}</p>
-                      <button onClick={() => deleteSession(date)} className="p-2 text-red-500 bg-red-50 rounded-lg"><Trash2 size={18}/></button>
+                    <div className="grid grid-cols-1 gap-3">
+                      <select value={p.role} onChange={(e) => handleUpdateProfile(p.id, e.target.value, p.kourel_id)} className="w-full bg-gray-50 p-4 rounded-2xl text-[10px] font-black uppercase outline-none focus:ring-2 ring-indigo-500 transition-all">
+                        <option value="surveillant">SURVEILLANT</option>
+                        <option value="coordinateur">COORDINATEUR</option>
+                      </select>
+                      <select value={p.kourel_id || ""} onChange={(e) => handleUpdateProfile(p.id, p.role, e.target.value || null)} className="w-full bg-gray-50 p-4 rounded-2xl text-[10px] font-black uppercase outline-none focus:ring-2 ring-indigo-500 transition-all">
+                        <option value="">SANS KUREL (AUCUN ACCÈS)</option>
+                        {kourels.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+                      </select>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
 
-              {mgmtTab === 'users' && (
-                <div className="space-y-4">
-                  {allProfiles.map(p => (
-                    <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <p className="font-bold text-xs truncate max-w-[200px]">{p.email}</p>
-                        <span className={`text-[8px] font-bold px-2 py-1 rounded-full uppercase ${p.role === 'coordinateur' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>{p.role}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <select value={p.role} onChange={(e) => handleUpdateProfile(p.id, e.target.value, p.kourel_id)} className="bg-gray-50 p-2 rounded-lg text-[10px] font-bold outline-none">
-                          <option value="surveillant">SURVEILLANT</option>
-                          <option value="coordinateur">COORDINATEUR</option>
-                        </select>
-                        <select value={p.kourel_id || ""} onChange={(e) => handleUpdateProfile(p.id, p.role, e.target.value || null)} className="bg-gray-50 p-2 rounded-lg text-[10px] font-bold outline-none">
-                          <option value="">SANS KUREL</option>
-                          {kourels.map(k => <option key={k.id} value={k.id}>{k.name.slice(0, 15)}...</option>)}
-                        </select>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* MOBILE TAB BAR */}
+      {/* NAVIGATION MOBILE (Tab Bar) */}
       {user && view !== 'login' && view !== 'selection' && (
-        <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 h-16 flex items-center justify-around px-2 z-40">
-          <button onClick={() => setView('dashboard')} className={`p-2 rounded-xl transition ${view === 'dashboard' ? 'text-blue-600 bg-blue-50' : 'text-gray-400'}`}><LayoutDashboard size={22} /></button>
-          <button onClick={() => setView('attendance')} className={`p-2 rounded-xl transition ${view === 'attendance' ? 'text-blue-600 bg-blue-50' : 'text-gray-400'}`}><CheckCircle2 size={22} /></button>
-          <button onClick={() => setView('history')} className={`p-2 rounded-xl transition ${view === 'history' ? 'text-blue-600 bg-blue-50' : 'text-gray-400'}`}><History size={22} /></button>
-          <button onClick={() => setView('mgmt')} className={`p-2 rounded-xl transition ${view === 'mgmt' ? 'text-blue-600 bg-blue-50' : 'text-gray-400'}`}><Settings size={22} /></button>
+        <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-xl border-t border-gray-100 h-20 flex items-center justify-around px-6 z-[60]">
+          {[
+            { id: 'dashboard', icon: LayoutGrid },
+            { id: 'attendance', icon: CheckCircle2 },
+            { id: 'history', icon: ClipboardList },
+            { id: 'mgmt', icon: Settings },
+          ].map(item => (
+            <button key={item.id} onClick={() => setView(item.id)} className={`p-3 rounded-2xl transition-all ${view === item.id ? 'text-indigo-600 bg-indigo-50 shadow-sm' : 'text-gray-300'}`}>
+              <item.icon size={24} strokeWidth={view === item.id ? 2.5 : 2} />
+            </button>
+          ))}
         </nav>
       )}
     </div>
