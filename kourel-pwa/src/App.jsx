@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 import { 
   Home, CheckCircle2, ClipboardList, Settings, LogOut, 
   Plus, Save, Loader2, ChevronLeft, ChevronRight, Search, 
-  Phone, FileDown, Trash2, Users, Calendar, ShieldCheck, UserPlus, TrendingUp
+  Phone, FileDown, Trash2, Users, Calendar, ShieldCheck, UserPlus, TrendingUp, Pencil, X
 } from 'lucide-react';
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -32,14 +32,15 @@ function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  
+  // Member CRUD State
   const [newMember, setNewMember] = useState({ name: '', phone: '' });
+  const [editingMember, setEditingMember] = useState(null);
   
   const [histSearch, setHistSearch] = useState('');
   const [histStatus, setHistStatus] = useState('Tous');
 
-  useEffect(() => { 
-    checkUser(); 
-  }, []);
+  useEffect(() => { checkUser(); }, []);
 
   useEffect(() => {
     if (selectedKourel && view === 'attendance') {
@@ -168,16 +169,39 @@ function App() {
     setSaving(false);
   };
 
-  const handleAddMember = async () => {
+  const handleAddOrUpdateMember = async () => {
     if (!newMember.name.trim()) return;
+    setSaving(true);
     try {
-      const { error } = await supabase.from('members').insert([{ name: newMember.name, phone: newMember.phone, kourel_id: selectedKourel.id }]);
-      if (!error) {
-        showToast('Membre ajouté');
-        loadKourelData(selectedKourel.id);
-        setNewMember({ name: '', phone: '' });
-      } else { showToast('Erreur ajout', 'error'); }
+      if (editingMember) {
+        const { error } = await supabase.from('members').update({ name: newMember.name, phone: newMember.phone }).eq('id', editingMember.id);
+        if (!error) {
+          showToast('Membre mis à jour');
+          setEditingMember(null);
+        } else { showToast('Erreur modification', 'error'); }
+      } else {
+        const { error } = await supabase.from('members').insert([{ name: newMember.name, phone: newMember.phone, kourel_id: selectedKourel.id }]);
+        if (!error) {
+          showToast('Membre ajouté');
+        } else { showToast('Erreur ajout', 'error'); }
+      }
+      loadKourelData(selectedKourel.id);
+      setNewMember({ name: '', phone: '' });
     } catch (err) { showToast('Erreur système', 'error'); }
+    setSaving(false);
+  };
+
+  const handleDeleteMember = async (id) => {
+    if (!window.confirm('Supprimer définitivement ce membre ?')) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('members').delete().eq('id', id);
+      if (!error) {
+        showToast('Membre supprimé');
+        loadKourelData(selectedKourel.id);
+      } else { showToast('Erreur suppression', 'error'); }
+    } catch (err) { showToast('Erreur système', 'error'); }
+    setSaving(false);
   };
 
   const deleteSession = async (date) => {
@@ -227,7 +251,7 @@ function App() {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-white space-y-4">
         <Loader2 className="animate-spin text-indigo-600" size={48} />
-        <p className="font-black text-slate-400 uppercase tracking-widest text-xs animate-pulse">Initialisation Saytu...</p>
+        <p className="font-black text-slate-400 uppercase tracking-widest text-xs animate-pulse">Saytu Kurel...</p>
       </div>
     );
   }
@@ -241,24 +265,22 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
-      {user && (
-        <header className="sticky top-0 z-50 bg-slate-900 text-white shadow-lg">
-          <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="text-indigo-400" size={24} />
-              <span className="font-bold tracking-tight uppercase">Saytu</span>
-            </div>
-            <nav className="hidden md:flex gap-6">
-              {navItems.map(item => (
-                <button key={item.id} onClick={() => setView(item.id)} className={`flex items-center gap-2 text-xs font-bold uppercase ${view === item.id ? 'text-indigo-400' : 'text-slate-400'}`}>
-                  <item.icon size={16} /> {item.label}
-                </button>
-              ))}
-            </nav>
-            <button onClick={handleLogout} className="p-1 hover:text-red-400"><LogOut size={20}/></button>
+      <header className="sticky top-0 z-50 bg-slate-900 text-white shadow-lg">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="text-indigo-400" size={24} />
+            <span className="font-bold tracking-tight uppercase">Saytu</span>
           </div>
-        </header>
-      )}
+          <nav className="hidden md:flex gap-6">
+            {navItems.map(item => (
+              <button key={item.id} onClick={() => setView(item.id)} className={`flex items-center gap-2 text-xs font-bold uppercase ${view === item.id ? 'text-indigo-400' : 'text-slate-400'}`}>
+                <item.icon size={16} /> {item.label}
+              </button>
+            ))}
+          </nav>
+          <button onClick={handleLogout} className="p-1 hover:text-red-400 transition-colors"><LogOut size={20}/></button>
+        </div>
+      </header>
 
       {toast && (
         <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-2xl text-white font-bold z-[100] animate-in slide-in-from-top-4 ${toast.type === 'success' ? 'bg-slate-900' : 'bg-red-500'}`}>
@@ -273,7 +295,7 @@ function App() {
               <h1 className="text-2xl font-black text-center uppercase tracking-widest">Connexion</h1>
               <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 ring-indigo-500 transition-all" />
               <input type="password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 ring-indigo-500 transition-all" />
-              <button className="w-full bg-slate-900 text-white p-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all">Entrer</button>
+              <button className="w-full bg-slate-900 text-white p-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg">Entrer</button>
             </form>
           </div>
         )}
@@ -314,10 +336,10 @@ function App() {
                   </button>
                 )}
                 {profile?.role === 'coordinateur' && (
-                  <div className="bg-indigo-600 p-8 rounded-[2.5rem] text-white flex flex-col items-center text-center space-y-4 shadow-xl">
+                  <div className="bg-indigo-600 p-8 rounded-[2.5rem] text-white flex flex-col items-center text-center space-y-4 shadow-xl shadow-indigo-100">
                     <TrendingUp size={40} className="text-indigo-200" />
                     <h3 className="text-xl font-black uppercase tracking-tight">Supervision Master</h3>
-                    <button onClick={() => setView('history')} className="bg-white text-indigo-600 px-8 py-3 rounded-2xl font-black text-[10px] uppercase">Voir l'historique</button>
+                    <button onClick={() => setView('history')} className="bg-white text-indigo-600 px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest">Voir l'historique</button>
                   </div>
                 )}
               </div>
@@ -325,7 +347,7 @@ function App() {
 
             {view === 'attendance' && profile?.role === 'surveillant' && (
               <div className="space-y-6">
-                <div className="bg-white border border-slate-200 p-6 rounded-3xl flex flex-col items-center gap-4">
+                <div className="bg-white border border-slate-200 p-6 rounded-3xl flex flex-col items-center gap-4 shadow-sm">
                   <p className="text-xs font-black text-indigo-600 uppercase tracking-[0.3em] text-center">{format(attendanceDate, 'EEEE d MMMM yyyy', { locale: fr })}</p>
                   <div className="flex items-center gap-10">
                     <button onClick={() => setAttendanceDate(new Date(attendanceDate.setDate(attendanceDate.getDate()-1)))} className="p-3 bg-slate-50 rounded-2xl"><ChevronLeft size={24}/></button>
@@ -356,13 +378,13 @@ function App() {
               <div className="space-y-6">
                 <div className="bg-white border border-slate-200 p-6 rounded-3xl space-y-4 shadow-sm">
                   <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-black uppercase tracking-tight">Filtres</h2>
-                    <button onClick={generateMonthlyPDF} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase"><FileDown size={14}/> Export</button>
+                    <h2 className="text-xl font-black uppercase tracking-tight">Filtres Historique</h2>
+                    <button onClick={generateMonthlyPDF} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2"><FileDown size={14}/> Export</button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" />
-                    <input type="text" placeholder="Membre..." value={histSearch} onChange={e => setHistSearch(e.target.value)} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" />
-                    <select value={histStatus} onChange={e => setHistStatus(e.target.value)} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs">
+                    <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 ring-indigo-500" />
+                    <input type="text" placeholder="Membre..." value={histSearch} onChange={e => setHistSearch(e.target.value)} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 ring-indigo-500" />
+                    <select value={histStatus} onChange={e => setHistStatus(e.target.value)} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 ring-indigo-500">
                       <option value="Tous">Tous les statuts</option>
                       <option value="Présent">Présents</option>
                       <option value="Absent">Absents</option>
@@ -375,9 +397,9 @@ function App() {
                     const filteredInDay = history.filter(h => h.date === date && (histSearch === '' || h.members?.name.toLowerCase().includes(histSearch.toLowerCase())) && (histStatus === 'Tous' || h.status === histStatus));
                     if (filteredInDay.length === 0) return null;
                     return (
-                      <div key={date} className="bg-white border border-slate-100 p-6 rounded-3xl space-y-4">
-                        <div className="flex justify-between items-center border-b pb-3"><p className="font-black text-xs uppercase text-slate-400">{format(parseISO(date), 'EEEE d MMMM yyyy', { locale: fr })}</p>{profile?.role === 'coordinateur' && <button onClick={() => deleteSession(date)} className="text-red-300 hover:text-red-600"><Trash2 size={16}/></button>}</div>
-                        <div className="flex flex-wrap gap-2">{filteredInDay.map(h => (<div key={h.id} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase border ${h.status === 'Présent' ? 'bg-emerald-50 text-emerald-700' : h.status === 'Absent' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{h.members?.name} : {h.status === 'Excusé' ? 'NGANT' : h.status}</div>))}</div>
+                      <div key={date} className="bg-white border border-slate-100 p-6 rounded-3xl space-y-4 shadow-sm">
+                        <div className="flex justify-between items-center border-b pb-3"><p className="font-black text-xs uppercase text-slate-400 tracking-widest">{format(parseISO(date), 'EEEE d MMMM yyyy', { locale: fr })}</p>{profile?.role === 'coordinateur' && <button onClick={() => deleteSession(date)} className="text-red-300 hover:text-red-600"><Trash2 size={16}/></button>}</div>
+                        <div className="flex flex-wrap gap-2">{filteredInDay.map(h => (<div key={h.id} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${h.status === 'Présent' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : h.status === 'Absent' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>{h.members?.name} : {h.status === 'Excusé' ? 'NGANT' : h.status}</div>))}</div>
                       </div>
                     );
                   })}
@@ -387,43 +409,58 @@ function App() {
 
             {view === 'mgmt' && (
               <div className="space-y-6">
-                <div className="flex bg-white p-1 rounded-2xl border border-slate-100 shadow-sm">
-                   <button onClick={() => setMgmtTab('members')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'members' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}>Membres</button>
-                   <button onClick={() => setMgmtTab('sessions')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'sessions' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}>Sessions</button>
-                   {profile?.role === 'coordinateur' && <button onClick={() => setMgmtTab('users')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'users' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}>Admin</button>}
+                <div className="flex bg-white p-1 rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                   <button onClick={() => setMgmtTab('members')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'members' ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>Membres</button>
+                   <button onClick={() => setMgmtTab('sessions')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'sessions' ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>Sessions</button>
+                   {profile?.role === 'coordinateur' && <button onClick={() => setMgmtTab('users')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${mgmtTab === 'users' ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>Admin</button>}
                 </div>
+
                 {mgmtTab === 'members' && (
                   <div className="space-y-4">
                     {profile?.role === 'surveillant' && (
                       <div className="bg-white border border-slate-100 p-6 rounded-3xl space-y-4 shadow-sm">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Nouveau Membre</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <input type="text" placeholder="Prénom & Nom" value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" />
-                          <input type="tel" placeholder="Téléphone" value={newMember.phone} onChange={e => setNewMember({...newMember, phone: e.target.value})} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" />
+                        <div className="flex justify-between items-center">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">{editingMember ? 'Modifier Membre' : 'Nouveau Membre'}</p>
+                          {editingMember && <button onClick={() => { setEditingMember(null); setNewMember({name:'', phone:''}); }} className="text-slate-400"><X size={16}/></button>}
                         </div>
-                        <button onClick={handleAddMember} className="w-full bg-indigo-600 text-white p-4 rounded-xl font-black uppercase text-[10px] flex items-center justify-center gap-2"><Plus size={16}/> Ajouter</button>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <input type="text" placeholder="Prénom & Nom" value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 ring-indigo-500" />
+                          <input type="tel" placeholder="Téléphone" value={newMember.phone} onChange={e => setNewMember({...newMember, phone: e.target.value})} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 ring-indigo-500" />
+                        </div>
+                        <button onClick={handleAddOrUpdateMember} disabled={saving} className="w-full bg-indigo-600 text-white p-4 rounded-xl font-black uppercase text-[10px] flex items-center justify-center gap-2">
+                          {editingMember ? <Save size={16}/> : <Plus size={16}/>} {editingMember ? 'Enregistrer les modifications' : 'Ajouter au Kourel'}
+                        </button>
                       </div>
                     )}
-                    <div className="grid gap-3 pt-4">
+                    
+                    <div className="grid gap-3 pt-2">
                       {allMembers.map(m => (
                         <div key={m.id} className="bg-white p-5 border border-slate-100 rounded-2xl flex justify-between items-center shadow-sm">
                           <div><p className="font-bold text-sm text-slate-800 uppercase">{m.name}</p><p className="text-[10px] text-slate-400 font-bold">{m.phone || 'Pas de numéro'}</p></div>
                           <div className="flex gap-2">
-                             {m.phone && <a href={`tel:${m.phone}`} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Phone size={16}/></a>}
-                             <button onClick={async () => { if(window.confirm('Changer le statut ?')) { await supabase.from('members').update({active: !m.active}).eq('id', m.id); loadKourelData(selectedKourel.id); }}} className={`p-2.5 rounded-xl border ${m.active ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`}><Users size={16}/></button>
+                             {m.phone && <a href={`tel:${m.phone}`} className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><Phone size={16}/></a>}
+                             {profile?.role === 'surveillant' && (
+                               <>
+                                 <button onClick={() => { setEditingMember(m); setNewMember({name: m.name, phone: m.phone || ''}); window.scrollTo({top:0, behavior:'smooth'}); }} className="p-2.5 bg-slate-50 text-slate-600 rounded-xl border border-slate-100"><Pencil size={16}/></button>
+                                 <button onClick={async () => { if(window.confirm('Désactiver ?')) { await supabase.from('members').update({active: !m.active}).eq('id', m.id); loadKourelData(selectedKourel.id); }}} className={`p-2.5 rounded-xl border ${m.active ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`}><Users size={16}/></button>
+                                 <button onClick={() => handleDeleteMember(m.id)} className="p-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100"><Trash2 size={16}/></button>
+                               </>
+                             )}
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
+
                 {mgmtTab === 'sessions' && (
                   <div className="grid gap-2">
                     {[...new Set(history.map(h => h.date))].map(date => (
-                      <div key={date} className="p-4 bg-white border border-slate-100 rounded-xl flex justify-between items-center"><span className="font-bold text-xs">{date}</span><button onClick={() => deleteSession(date)} className="text-red-500"><Trash2 size={18}/></button></div>
+                      <div key={date} className="p-4 bg-white border border-slate-100 rounded-xl flex justify-between items-center shadow-sm"><span className="font-bold text-xs">{date}</span><button onClick={() => deleteSession(date)} className="text-red-500 p-2 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button></div>
                     ))}
                   </div>
                 )}
+
                 {mgmtTab === 'users' && profile?.role === 'coordinateur' && (
                    <div className="grid gap-3">
                     {allProfiles.map(p => (
@@ -443,13 +480,11 @@ function App() {
         )}
       </main>
 
-      {user && view !== 'selection' && (
-        <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-slate-100 h-20 flex justify-around items-center z-[60] px-2 shadow-2xl">
-          {navItems.map(item => (
-            <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center gap-1 p-2 min-w-[70px] transition-all ${view === item.id ? 'text-indigo-600' : 'text-slate-300'}`}><item.icon size={22} strokeWidth={2.5} /><span className="text-[9px] font-black uppercase tracking-tighter">{item.label}</span></button>
-          ))}
-        </nav>
-      )}
+      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-slate-100 h-20 flex justify-around items-center z-[60] px-2 shadow-2xl">
+        {navItems.map(item => (
+          <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center gap-1 p-2 min-w-[70px] transition-all ${view === item.id ? 'text-indigo-600' : 'text-slate-300'}`}><item.icon size={22} strokeWidth={2.5} /><span className="text-[9px] font-black uppercase tracking-tighter">{item.label}</span></button>
+        ))}
+      </nav>
     </div>
   );
 }
