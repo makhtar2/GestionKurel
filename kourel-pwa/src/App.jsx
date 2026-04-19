@@ -43,8 +43,8 @@ function App() {
 
   useEffect(() => { checkUser(); }, []);
   useEffect(() => {
-    if (selectedKourel && view === 'attendance') loadExistingAttendance();
-  }, [attendanceDate, selectedKourel, view]);
+    if (selectedKourel && view === 'attendance' && members.length > 0) loadExistingAttendance();
+  }, [attendanceDate, selectedKourel, view, members]);
 
   const filteredHistory = useMemo(() => {
     return history.filter(h => {
@@ -169,16 +169,11 @@ function App() {
   };
 
   const handleDeleteMember = async (id) => {
-    confirmAction(
-      "Suppression", 
-      "Retirer définitivement ce membre ?", 
-      async () => {
-        await supabase.from('members').delete().eq('id', id);
-        await loadKourelData(selectedKourel.id);
-        showToast('Membre retiré');
-      },
-      'danger'
-    );
+    confirmAction("Suppression", "Retirer définitivement ce membre ?", async () => {
+      await supabase.from('members').delete().eq('id', id);
+      await loadKourelData(selectedKourel.id);
+      showToast('Membre retiré');
+    }, 'danger');
   };
 
   const deleteSession = async (date) => {
@@ -199,7 +194,7 @@ function App() {
 
   const generateFilteredPDF = () => {
     const doc = new jsPDF();
-    doc.setFontSize(22); doc.setTextColor(0, 51, 98); doc.text("SAYTU KUREL", 14, 20);
+    doc.setFontSize(22); doc.setTextColor(0, 51, 98); doc.text("SAYTU NUXBA", 14, 20);
     autoTable(doc, { 
       startY: 40, head: [['NOM ET PRENOM', 'STATUT', 'DATE']], 
       body: filteredHistory.map(h => [h.members?.name.toUpperCase(), h.status.toUpperCase(), h.date]),
@@ -220,24 +215,12 @@ function App() {
     </button>
   );
 
-  const LogoSceau = ({ size = "w-32 h-32", withAnimation = false }) => (
-    <div className={`relative ${size} mx-auto ${withAnimation ? 'animate-bounce-slow' : ''}`}>
-      <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#dc9b3f] via-[#f3df8f] to-[#dc9b3f] p-1.5 shadow-2xl">
-        <div className="w-full h-full rounded-full bg-[#003362] p-1">
-          <div className="w-full h-full rounded-full bg-white flex items-center justify-center p-2 overflow-hidden">
-            <img src={logoDahira} alt="Logo Dahira" className="w-full h-full object-contain" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-white space-y-12">
-      <LogoSceau size="w-48 h-48" withAnimation={true} />
-      <div className="text-center space-y-4">
+    <div className="h-screen flex flex-col items-center justify-center bg-white space-y-8 p-12 text-center">
+      <img src={logoDahira} alt="Logo" className="w-48 h-48 object-contain mb-4 animate-pulse" />
+      <div className="space-y-4">
         <Loader2 className="animate-spin text-[#003362] mx-auto" size={40} />
-        <p className="text-[11px] font-black text-[#003362] uppercase tracking-[0.4em] animate-pulse">Initialisation du Registre</p>
+        <p className="text-[11px] font-black text-[#003362] uppercase tracking-[0.4em]">Saytu Nuxba</p>
       </div>
     </div>
   );
@@ -251,16 +234,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans flex flex-col antialiased">
-      <style>{`
-        @keyframes bounce-slow {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
-        .animate-bounce-slow { animation: bounce-slow 4s ease-in-out infinite; }
-      `}</style>
-
+      
       {modal.show && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#003362]/60 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#003362]/40 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
             <div className={`p-8 text-center space-y-4 ${modal.type === 'danger' ? 'bg-red-50' : 'bg-amber-50'}`}>
               <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center ${modal.type === 'danger' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-[#dc9b3f]'}`}>
@@ -280,28 +256,32 @@ function App() {
       {user && (
         <header className="sticky top-0 z-[80] bg-[#003362] text-white shadow-xl h-24 border-b-2 border-[#f0bd53]">
           <div className="max-w-4xl mx-auto px-4 h-full flex justify-between items-center relative">
-            <div className="flex items-center gap-3">
-              <div className="translate-y-4">
-                <LogoSceau size="w-24 h-24" />
-              </div>
-              <span className="font-bold tracking-tighter text-xl uppercase hidden sm:inline ml-4 pt-2">Saytu Kurel</span>
+            <div className="flex items-center gap-4">
+              <img src={logoDahira} alt="Logo" className="w-16 h-16 object-contain" />
+              <span className="font-bold tracking-tighter text-xl uppercase hidden sm:inline pt-1">Saytu Nuxba</span>
             </div>
-            <nav className="hidden md:flex gap-8 pt-2">
+            <nav className="hidden md:flex gap-8 pt-1">
               {navItems.map(item => (
                 <button key={item.id} onClick={() => setView(item.id)} className={`flex items-center gap-2 text-xs font-black uppercase transition-colors ${view === item.id ? 'text-[#f0bd53]' : 'text-slate-300 hover:text-white'}`}>
                   <item.icon size={16} /> {item.label}
                 </button>
               ))}
             </nav>
-            <button onClick={() => confirmAction("Déconnexion", "Quitter l'espace ?", () => supabase.auth.signOut().then(() => window.location.reload()))} className="p-1 text-slate-300 hover:text-[#f0bd53] pt-2"><LogOut size={22}/></button>
+            <button onClick={() => confirmAction("Déconnexion", "Quitter l'espace ?", () => supabase.auth.signOut().then(() => window.location.reload()))} className="p-1 text-slate-300 hover:text-[#f0bd53] pt-1"><LogOut size={22}/></button>
           </div>
         </header>
+      )}
+
+      {toast && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white font-black text-[10px] uppercase tracking-widest z-[150] bg-[#003362] animate-in slide-in-from-top-4`}>
+          {toast.msg}
+        </div>
       )}
 
       <main className="flex-1 w-full max-w-4xl mx-auto p-4 md:p-12 pb-32">
         {view === 'login' && (
           <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 space-y-12">
-            <LogoSceau size="w-48 h-48" withAnimation={true} />
+            <img src={logoDahira} alt="Logo" className="w-48 h-48 object-contain" />
             <form onSubmit={handleLogin} className="w-full max-w-sm bg-white p-10 rounded-[3rem] border border-slate-100 shadow-2xl space-y-8 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#dc9b3f] via-[#f0bd53] to-[#f3df8f]"></div>
               <div className="text-center space-y-2">
@@ -456,17 +436,53 @@ function App() {
                 )}
 
                 {mgmtTab === 'sessions' && (
-                  <div className="grid gap-3">
+                  <div className="grid gap-4">
                     {sessionsList.map(date => (
-                      <div key={date} className="bg-white p-6 rounded-[2rem] border border-slate-100 flex justify-between items-center shadow-sm">
+                      <div key={date} className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm flex justify-between items-center transition-all hover:border-[#003362]/20">
                          <div className="space-y-1">
                            <p className="font-black text-[#003362] uppercase text-sm">{format(parseISO(date), 'dd/MM/yyyy')}</p>
                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{format(parseISO(date), 'EEEE', { locale: fr })}</p>
                          </div>
                          <div className="flex items-center gap-2">
-                           <button onClick={() => { setAttendanceDate(parseISO(date)); setView('attendance'); }} className="p-3 bg-slate-50 text-[#003362] rounded-xl hover:bg-[#003362] hover:text-white transition-all"><Pencil size={18}/></button>
-                           {profile?.role === 'coordinateur' && <button onClick={() => deleteSession(date)} className="p-3 bg-red-50 text-red-600 rounded-xl"><Trash2 size={18}/></button>}
+                           <button onClick={() => { setAttendanceDate(parseISO(date)); setView('attendance'); window.scrollTo({top:0, behavior:'smooth'}); }} className="p-3 bg-slate-50 text-[#003362] rounded-xl hover:bg-[#003362] hover:text-white transition-all shadow-sm">
+                             <Pencil size={18}/>
+                           </button>
+                           {profile?.role === 'coordinateur' && (
+                             <button onClick={() => deleteSession(date)} className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm">
+                               <Trash2 size={18}/>
+                             </button>
+                           )}
                          </div>
+                      </div>
+                    ))}
+                    {sessionsList.length === 0 && <div className="text-center py-20 text-slate-300 font-black uppercase text-[10px] tracking-widest">Aucune session enregistrée</div>}
+                  </div>
+                )}
+
+                {mgmtTab === 'users' && profile?.role === 'coordinateur' && (
+                   <div className="grid gap-4">
+                    {allProfiles.map(p => (
+                      <div key={p.id} className="p-6 bg-white border border-slate-100 rounded-[2rem] space-y-5 shadow-sm">
+                        <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+                           <p className="font-black text-xs truncate max-w-[200px] text-[#003362]">{p.email}</p>
+                           <span className="text-[8px] font-black bg-amber-50 text-amber-700 px-2 py-0.5 rounded uppercase tracking-widest border border-amber-100">{p.role}</span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black uppercase text-slate-400 ml-2">Attribuer un rôle</label>
+                            <select value={p.role} onChange={(e) => handleUpdateProfile(p.id, e.target.value, p.kourel_id)} className="w-full text-[10px] border border-slate-200 p-4 rounded-xl font-black bg-slate-50 outline-none focus:ring-2 ring-[#003362]">
+                              <option value="surveillant">SURVEILLANT</option>
+                              <option value="coordinateur">COORDINATEUR</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black uppercase text-slate-400 ml-2">Assigner à un Kourel</label>
+                            <select value={p.kourel_id || ""} onChange={(e) => handleUpdateProfile(p.id, p.role, e.target.value || null)} className="w-full text-[10px] border border-slate-200 p-4 rounded-xl font-black bg-slate-50 outline-none focus:ring-2 ring-[#003362] truncate">
+                              <option value="">SANS KUREL (AUCUN ACCÈS)</option>
+                              {kourels.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+                            </select>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
